@@ -112,6 +112,8 @@ export function createCanal(scene){
       g.fillStyle = day ? '#3d4248' : '#101317'; g.fillRect(0, 0, 128, 128);
       g.fillStyle = day ? 'rgba(255,255,255,.92)' : 'rgba(228,235,242,.6)';
       g.fillRect(61, 0, 6, 128);   // 南北向实线, 宽 0.95m 与路段虚线同宽
+      g.fillRect(7, 0, 6, 128);    // 主路边线, 与路段纹理 u=3..6/64 对齐 (x±8.1..9.1)
+      g.fillRect(115, 0, 6, 128);
       const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
       return t;
     };

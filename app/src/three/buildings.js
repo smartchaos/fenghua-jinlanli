@@ -42,6 +42,11 @@ function makeFacade(b, day, roomsByB){
     g.fillRect(x, M, 5, 1024-M*2);
   }
   g.fillStyle = 'rgba(255,255,255,.10)'; g.fillRect(0, M, 1024, 4);
+  const sheen = g.createLinearGradient(0, 0, 1024, 0);
+  sheen.addColorStop(0, 'rgba(255,255,255,0)');
+  sheen.addColorStop(.5, day ? 'rgba(255,250,236,.10)' : 'rgba(255,244,224,.05)');
+  sheen.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = sheen; g.fillRect(0, 0, 1024, 1024);
   e.fillStyle = '#000'; e.fillRect(0, 0, 1024, 1024);
 
   const floorRooms = roomsByB[b.id] || [];
@@ -177,7 +182,116 @@ function makeSide(b, day, roomsByB, endCol){
   return { map, glow };
 }
 
-/* 12 栋楼: 基座/立面盒/屋顶/女儿墙/核心筒/门厅雨棚; 初始压扁待 intro 生长 */
+/* 竖棱圆角横截面(俯视, x 右 z 下, 逆时针): 每个转角弧在 45° 处对半劈开,
+ * 两半各归相邻平面之一(前接半弧 u<0、后随半弧 u>1, ClampToEdge 钳到贴图边缘色),
+ * 转角两侧色调对称, 视同真实 mitre 拼缝; 面间顶点不共享以保证棱线法线锐利 */
+function roundedWallGeometry(w, d, h, r){
+  const hw = w/2, hd = d/2, HALF = 3;
+  const pos = [], nor = [], uv = [], idx = [];
+  const groups = [];
+  let vb = 0, ib = 0;
+  /* 各面 = 本转角后半弧(am→a1, 归本面 u∈[-ext,0]) + 平段(u 0→1) + 下一转角前半弧(a0→am, 归本面 u∈[1,1+ext]);
+   * mi=材质组号; 角序 px→nz→nx→pz */
+  const sections = [
+    { mi: 0, arc: { kx: hw-r,  kz: hd-r,  a0: Math.PI/2, a1: 0 },
+      flat: { x0: hw, z0: hd-r, x1: hw, z1: -(hd-r) } },
+    { mi: 5, arc: { kx: hw-r,  kz: -(hd-r), a0: 0, a1: -Math.PI/2 },
+      flat: { x0: hw-r, z0: -hd, x1: -(hw-r), z1: -hd } },
+    { mi: 1, arc: { kx: -(hw-r), kz: -(hd-r), a0: -Math.PI/2, a1: -Math.PI },
+      flat: { x0: -hw, z0: -(hd-r), x1: -hw, z1: hd-r } },
+    { mi: 4, arc: { kx: -(hw-r), kz: hd-r, a0: Math.PI, a1: Math.PI/2 },
+      flat: { x0: -(hw-r), z0: hd, x1: hw-r, z1: hd } },
+  ];
+  const arcPt = (arc, a, u) => ({
+    x: arc.kx + r*Math.cos(a), z: arc.kz + r*Math.sin(a),
+    nx: Math.cos(a), nz: Math.sin(a), u
+  });
+  for(let si = 0; si < sections.length; si++){
+    const s = sections[si];
+    const nxSec = sections[(si + 1) % sections.length];
+    const flatLen = Math.hypot(s.flat.x1-s.flat.x0, s.flat.z1-s.flat.z0);
+    const ext = (r*Math.PI/4) / flatLen; /* 半弧长折算成 u 越界量 */
+    const am = s.arc.a0 + (s.arc.a1 - s.arc.a0) / 2;
+    const nam = nxSec.arc.a0 + (nxSec.arc.a1 - nxSec.arc.a0) / 2;
+    const nxFlatLen = Math.hypot(nxSec.flat.x1-nxSec.flat.x0, nxSec.flat.z1-nxSec.flat.z0);
+    const nxExt = (r*Math.PI/4) / nxFlatLen;
+    const pts = [];
+    /* 本转角后半弧: 45° 点 → 平段起点(a1), 归本面, u∈[-ext,0] */
+    for(let i = HALF; i >= 0; i--){
+      const a = s.arc.a1 + (am - s.arc.a1) * i / HALF;
+      pts.push(arcPt(s.arc, a, -ext * i / HALF));
+    }
+    /* 平段: 跳过首点(=前弧末点, 顶点不共享), 末点保留(接后弧) */
+    for(let i = 1; i <= 5; i++){
+      const t = i / 5;
+      pts.push({ x: s.flat.x0 + (s.flat.x1-s.flat.x0)*t, z: s.flat.z0 + (s.flat.z1-s.flat.z0)*t,
+                 nx: 0, nz: 0, u: t, flat: true });
+    }
+    /* 下一转角前半弧: 平段末端(a0) → 45° 点, 归本面, u∈[1,1+nxExt] */
+    for(let i = 1; i <= HALF; i++){
+      const a = nxSec.arc.a0 + (nam - nxSec.arc.a0) * i / HALF;
+      pts.push(arcPt(nxSec.arc, a, 1 + nxExt * i / HALF));
+    }
+    for(const p of pts){
+      if(p.flat){
+        if(s.mi === 0){ p.nx = 1; } else if(s.mi === 1){ p.nx = -1; }
+        else if(s.mi === 4){ p.nz = 1; } else { p.nz = -1; }
+      }
+      pos.push(p.x, 0, p.z, p.x, h, p.z);
+      nor.push(p.nx, 0, p.nz, p.nx, 0, p.nz);
+      uv.push(p.u, 0, p.u, 1);
+    }
+    for(let i = 0; i < pts.length - 1; i++){
+      idx.push(vb + 2*i, vb + 2*i + 2, vb + 2*i + 1, vb + 2*i + 2, vb + 2*i + 3, vb + 2*i + 1);
+    }
+    groups.push([ib, (pts.length - 1) * 6, s.mi]);
+    ib += (pts.length - 1) * 6;
+    vb += pts.length * 2;
+  }
+  /* 顶盖: 圆角矩形平面(锐利顶棱), 跟随同一轮廓 */
+  const capStart = ib;
+  const capPts = [];
+  for(const s of sections){
+    for(let i = 0; i <= 6; i++){
+      const a = s.arc.a0 + (s.arc.a1 - s.arc.a0) * i / 6;
+      const p = { x: s.arc.kx + r*Math.cos(a), z: s.arc.kz + r*Math.sin(a) };
+      const last = capPts[capPts.length - 1];
+      if(!last || Math.abs(last.x - p.x) > 1e-6 || Math.abs(last.z - p.z) > 1e-6) capPts.push(p);
+    }
+    const f = s.flat, e = { x: f.x1, z: f.z1 };
+    const last = capPts[capPts.length - 1];
+    if(Math.abs(last.x - e.x) > 1e-6 || Math.abs(last.z - e.z) > 1e-6) capPts.push(e);
+  }
+  const ci = pos.length / 3;
+  pos.push(0, h, 0); nor.push(0, 1, 0); uv.push(0, 0);
+  for(const p of capPts){ pos.push(p.x, h, p.z); nor.push(0, 1, 0); uv.push(0, 0); }
+  for(let i = 0; i < capPts.length; i++){
+    const j = (i + 1) % capPts.length;
+    idx.push(ci, ci + 1 + i, ci + 1 + j);
+  }
+  groups.push([capStart, capPts.length * 3, 2]);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  for(const [start, count, mi] of groups) geo.addGroup(start, count, mi);
+  return geo;
+}
+
+/* 圆角矩形 Shape(屋顶板/女儿墙环用), 角半径 r */
+function roundedRectShape(w, d, r){
+  const s = new THREE.Shape(), hw = w/2, hd = d/2;
+  s.moveTo(-hw + r, -hd);
+  s.lineTo(hw - r, -hd); s.absarc(hw - r, -hd + r, r, -Math.PI/2, 0, false);
+  s.lineTo(hw, hd - r); s.absarc(hw - r, hd - r, r, 0, Math.PI/2, false);
+  s.lineTo(-hw + r, hd); s.absarc(-hw + r, hd - r, r, Math.PI/2, Math.PI, false);
+  s.lineTo(-hw, -hd + r); s.absarc(-hw + r, -hd + r, r, Math.PI, Math.PI*1.5, false);
+  return s;
+}
+
+/* 12 栋楼: 基座/圆角棱立面盒/屋顶/女儿墙/核心筒/门厅雨棚; 初始压扁待 intro 生长 */
 export function createBuildings(scene, buildings, roomsByB){
   const groups = [];
   const pickMeshes = [];
@@ -202,7 +316,7 @@ export function createBuildings(scene, buildings, roomsByB){
 
     const facadeMat = new THREE.MeshStandardMaterial({
       map: null, emissiveMap: null, emissive: 0xffffff, emissiveIntensity: 0.95,
-      roughness: 0.78, metalness: 0.04
+      roughness: 0.48, metalness: 0.22
     });
     const entry = { mat: facadeMat, b, n: makeFacade(b, false, roomsByB), d: null, mk: (bb, day)=>makeFacade(bb, day, roomsByB) };
     facades.push(entry);
@@ -212,7 +326,7 @@ export function createBuildings(scene, buildings, roomsByB){
     const mkSideMat = endCol => {
       const m = new THREE.MeshStandardMaterial({
         map: null, emissiveMap: null, emissive: 0xffffff, emissiveIntensity: 0.8,
-        roughness: 0.82, metalness: 0.04
+        roughness: 0.55, metalness: 0.16
       });
       const en = { mat: m, b, n: makeSide(b, false, roomsByB, endCol), d: null, mk: (bb, day)=>makeSide(bb, day, roomsByB, endCol) };
       facades.push(en);
@@ -225,41 +339,41 @@ export function createBuildings(scene, buildings, roomsByB){
     const sideMatNx = mkSideMat(sideCols-1);
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x565b62, roughness: 0.9, metalness: 0.08 });
     regColor(roofMat.color, 0x565b62, 0x474e59);
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [sideMatPx, sideMatNx, roofMat, roofMat, facadeMat, facadeMat]);
-    /* nz(北)面与 pz 共用立面贴图, 但 BoxGeometry nz 面 u 轴反向, 北立面房间列位被镜像;
-     * 翻转 nz 面(uv 属性第 20-23 顶点, 对应 materialIndex 5)的 u, 使 col 0 在两个立面都恒在 +x 端, 与山墙亮灯一致 */
-    const uvAttr = body.geometry.attributes.uv;
-    for(let i = 20; i < 24; i++) uvAttr.setX(i, 1 - uvAttr.getX(i));
-    uvAttr.needsUpdate = true;
-    body.position.y = 1.4 + h/2;
+    /* 四面香槟铝板 + 竖棱圆角(顶部保持锐利直角); 材质组序同旧 BoxGeometry: 0=px 1=nx 2=顶 4=pz 5=nz */
+    const rc = b.type === '洋房' ? 2.4 : 2.0;
+    const body = new THREE.Mesh(
+      roundedWallGeometry(w, d, h, rc),
+      [sideMatPx, sideMatNx, roofMat, roofMat, facadeMat, facadeMat]
+    );
+    body.position.y = 1.4;
     body.castShadow = true; body.receiveShadow = true;
     body.userData.b = b;
     group.add(body);
     pickMeshes.push(body);
 
+    const roofShape = roundedRectShape(w + 0.9, d + 0.9, rc);
+    const roofGeo = new THREE.ExtrudeGeometry(roofShape, { depth: 0.9, bevelEnabled: false });
+    roofGeo.rotateX(-Math.PI/2);
     const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(w+0.9, 0.9, d+0.9),
+      roofGeo,
       new THREE.MeshStandardMaterial({ color: 0x8a8478, roughness: .85, metalness: .05 })
     );
     regColor(roof.material.color, 0x8a8478, 0x746e62);
-    roof.position.y = 1.4 + h + 0.45;
+    roof.position.y = 1.4 + h;
     roof.castShadow = true;
     group.add(roof);
 
     const paraMat = new THREE.MeshStandardMaterial({ color: 0xaaa294, roughness: .82, metalness: .06 });
     regColor(paraMat.color, 0xaaa294, 0x8e8471);
-    const frontBack = new THREE.BoxGeometry(w+0.9, 1.1, 0.35);
-    [-1, 1].forEach(s=>{
-      const p = new THREE.Mesh(frontBack, paraMat);
-      p.position.set(0, 1.4+h+0.95, s*(d+0.9)/2);
-      p.castShadow = true; group.add(p);
-    });
-    const sideGeo = new THREE.BoxGeometry(0.35, 1.1, d+0.9);
-    [-1, 1].forEach(s=>{
-      const p = new THREE.Mesh(sideGeo, paraMat);
-      p.position.set(s*(w+0.9)/2, 1.4+h+0.95, 0);
-      p.castShadow = true; group.add(p);
-    });
+    const paraShape = roundedRectShape(w + 0.9, d + 0.9, rc);
+    const paraHole = roundedRectShape(w + 0.2, d + 0.2, Math.max(rc - 0.35, 0.1));
+    paraShape.holes.push(paraHole);
+    const paraGeo = new THREE.ExtrudeGeometry(paraShape, { depth: 1.1, bevelEnabled: false });
+    paraGeo.rotateX(-Math.PI/2);
+    const para = new THREE.Mesh(paraGeo, paraMat);
+    para.position.y = 1.4 + h + 0.4;
+    para.castShadow = true;
+    group.add(para);
 
     if(b.type !== '洋房'){
       const core = new THREE.Mesh(
