@@ -94,6 +94,7 @@
   .bar-row .name{font-family:var(--mono);font-size:12px;color:var(--muted)}
   .bar-row .name i{font-style:normal;color:var(--faint);font-size:9px;margin-left:2px;vertical-align:1px}
   .track{position:relative;height:16px;background:var(--void);border-radius:4px;overflow:hidden}
+  .track::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line)}
   .fill{position:absolute;inset:0 auto 0 0;border-radius:4px;background:linear-gradient(90deg,rgba(246,178,107,.55),var(--amber));transform-origin:left}
   .fill.villa{background:linear-gradient(90deg,rgba(103,213,192,.45),var(--teal))}
   .bar-row .val{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
@@ -290,15 +291,14 @@
   document.getElementById('kMembers').innerHTML = (M.captured - M.unresolved) + '<small>人</small>';
   document.getElementById('kUnres').innerHTML = M.unresolved + '<small>条</small>';
 
-  // building bars
+  // building bars —— 条长 = 真实入群率（占满为 100%），不再按最高楼归一化
   const bars = document.getElementById('bars');
-  const maxRate = Math.max(...B.map(b=>b.rate));
   B.forEach(b=>{
     const row = document.createElement('div');
     row.className='bar-row';
     row.innerHTML =
       `<div class="name">${b.name}<i>${b.type==='洋房'?'洋':'高'}</i></div>
-       <div class="track"><div class="fill ${b.type==='洋房'?'villa':''}" style="width:${(b.rate/maxRate*100).toFixed(1)}%"></div></div>
+       <div class="track"><div class="fill ${b.type==='洋房'?'villa':''}" style="width:${(b.rate*100).toFixed(1)}%"></div></div>
        <div class="val"><b>${b.joined}</b>/${b.total}<span>${pct(b.rate)}</span></div>`;
     bars.appendChild(row);
   });
