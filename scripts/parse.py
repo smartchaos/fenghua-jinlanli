@@ -11,11 +11,12 @@ RAW = ROOT / "data" / "raw"
 DATA = ROOT / "data"
 
 TOTAL_HOUSEHOLDS = 478
-GROUP_SIZE = 297
+# 群人数：297（11-04 快照）+ 2（快照后入群：3-1101 / 4-901，各 1 人）
+GROUP_SIZE = 299
 
 # 规划口径：8 幢 16F + 1 幢 13F + 1 幢 11F + 2 幢洋房（7F/6F）
 # 小高层 1F 架空，住宅从 2F 起，两梯三户；洋房一梯两户、每幢两单元、1F 起住。
-BUILDINGS = OrderedDict([
+BUILDINGS: OrderedDict[int, dict] = OrderedDict([
     (1,  {"name": "1#",  "type": "高层", "floors": 16, "resident_from": 2, "units": 3, "total": 45}),
     (2,  {"name": "2#",  "type": "高层", "floors": 16, "resident_from": 2, "units": 3, "total": 45}),
     (3,  {"name": "3#",  "type": "高层", "floors": 16, "resident_from": 2, "units": 3, "total": 45}),
@@ -246,6 +247,9 @@ USER_CONFIRMED = {
     "示例昵称G": "2-502",
 }
 
+# 快照后手工补录的入群业主（群昵称即房号，各 1 人）
+MANUAL_ADDITIONS = ["3-1101", "4-901"]
+
 
 def apply_group_nicknames(members):
     for m in members:
@@ -275,6 +279,8 @@ def main():
     members = build_members(seq)
     apply_group_nicknames(members)
     apply_user_confirmed(members)
+    for key in MANUAL_ADDITIONS:
+        members.append({"nick": key, "rooms": parse_rooms(key), "note": "快照后手工补录"})
     households = build_households(members)
     rooms = build_rooms()
 
@@ -371,9 +377,12 @@ def main():
         ],
         "floorMatrix": floor_matrix,
     }
-    (DATA / "app-data.js").write_text(
-        "window.APP_DATA = " + json.dumps(app, ensure_ascii=False, separators=(",", ":")) + ";\n",
-        encoding="utf-8",
+    payload = json.dumps(app, ensure_ascii=False, separators=(",", ":")) + ";\n"
+    # data/app-data.js: window 全局, 供 report.html 使用
+    (DATA / "app-data.js").write_text("window.APP_DATA = " + payload, encoding="utf-8")
+    # app/src/data/app-data.js: ESM, 供 model.html(Vite 构建)使用; 同一份数据两个出口, 勿手改
+    (Path(__file__).resolve().parent.parent / "app" / "src" / "data" / "app-data.js").write_text(
+        "export default " + payload, encoding="utf-8"
     )
 
     print(json.dumps({k: stats[k] for k in (
