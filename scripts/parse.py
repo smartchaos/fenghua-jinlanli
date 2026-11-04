@@ -222,8 +222,12 @@ def build_rooms():
                         # 洋房 1F 只有一单元的两户，2F-7F 每单元两户
                         if fl == 1 and u > 1:
                             continue
+                        col = (u - 1) * 2 + no - 1
+                        # 12# 1F 两户实际在西侧（102 最西，靠 col 3 = -x 端），不在默认的东端 col 0/1
+                        if b == 12 and fl == 1:
+                            col = no + 1  # 101→2, 102→3
                         rooms.append({"key": f"{b}-{u}-{fl}{no:02d}", "b": b, "u": u,
-                                      "f": fl, "no": no, "col": (u - 1) * 2 + no - 1})
+                                      "f": fl, "no": no, "col": col})
         else:
             for fl in range(spec["resident_from"], spec["floors"] + 1):
                 for no in range(1, spec["units"] + 1):
