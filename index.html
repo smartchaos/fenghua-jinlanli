@@ -459,7 +459,7 @@
 
     // lawns in the row gaps
     g.fillStyle = P.belt;
-    [[0,135,16,6],[0,95,16,6],[0,15,16,6],[0,-68,16,6],[0,-105,16,6]].forEach(([x,z,w,d])=>{
+    [[0,135,16,6],[0,95,16,6],[0,-68,16,6],[0,-105,16,6]].forEach(([x,z,w,d])=>{
       g.beginPath(); g.ellipse(px(x),py(z), px(w)-px(0), py(d)-py(0), 0, 0, Math.PI*2); g.fill();
     });
 
