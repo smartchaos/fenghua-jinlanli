@@ -671,8 +671,8 @@
     geo.rotateX(-Math.PI/2); geo.rotateY(Math.PI/2);
     return geo;
   }
-  /* 东路: 南北延伸至远方, 跨电厂河处断开由桥承接 */
-  [[-492, 616], [331, 938]].forEach(([cz, len])=>{
+  /* 东路: 南北延伸至远方, 止于跨河桥两端(桥面承接), 避免与桥面叠层 */
+  [[-495, 610], [334, 932]].forEach(([cz, len])=>{
     const r = new THREE.Mesh(roadGeo(len), roadTexMat(len));
     r.position.set(RX, 0.015, cz);
     canalGrp.add(r);
@@ -681,12 +681,13 @@
     const bridgeW = flatMat(0x101317, 0x3d4248);
     const railWhite = flatMat(0x8f959d, 0xf2f2ee);
     const CZR = -161, SPAN = 58;
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(20, 0.9, SPAN), bridgeW);
+    /* 道路纹理直接作盒体顶面材质(+y 面), 消除独立贴图平面与桥面的 z-fighting */
+    const deck = new THREE.Mesh(
+      new THREE.BoxGeometry(20, 0.9, SPAN),
+      [bridgeW, bridgeW, roadTexMat(SPAN), bridgeW, bridgeW, bridgeW]
+    );
     deck.position.set(RX, -0.42, CZR);          // 顶面 y0.03, 与路面齐平
     canalGrp.add(deck);
-    const top = new THREE.Mesh(roadGeo(SPAN), roadTexMat(SPAN));
-    top.position.set(RX, 0.045, CZR);
-    canalGrp.add(top);
     [-9.7, 9.7].forEach(xoff=>{
       const rail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.15, SPAN), railWhite);
       rail.position.set(RX + xoff, 0.6, CZR);
