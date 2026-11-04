@@ -237,9 +237,12 @@ function roundedWallGeometry(w, d, h, r){
         if(s.mi === 0){ p.nx = 1; } else if(s.mi === 1){ p.nx = -1; }
         else if(s.mi === 4){ p.nz = 1; } else { p.nz = -1; }
       }
+      /* nz(北)面与 pz(南)面共用同一张立面 canvas; pz 平段 u=0 在西端, 而 nz 平段
+       * x0→x1 为东→西(u=0 在东端), 直接共用会东西镜像。翻转 nz 的 u 使两面列序一致 */
+      const pu = s.mi === 5 ? 1 - p.u : p.u;
       pos.push(p.x, 0, p.z, p.x, h, p.z);
       nor.push(p.nx, 0, p.nz, p.nx, 0, p.nz);
-      uv.push(p.u, 0, p.u, 1);
+      uv.push(pu, 0, pu, 1);
     }
     for(let i = 0; i < pts.length - 1; i++){
       idx.push(vb + 2*i, vb + 2*i + 2, vb + 2*i + 1, vb + 2*i + 2, vb + 2*i + 3, vb + 2*i + 1);
