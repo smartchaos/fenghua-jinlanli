@@ -204,20 +204,20 @@
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x071019);
-  scene.fog = new THREE.Fog(0x071019, 380, 850);
+  scene.fog = new THREE.Fog(0x071019, 450, 900);
 
   const colFaders = [], numFaders = [];
   function regColor(inst, n, d){ colFaders.push({c:inst, n:new THREE.Color(n), d:new THREE.Color(d)}); }
   function regNum(o, p, n, d){ numFaders.push({o, p, n, d}); }
   regColor(scene.background, 0x071019, 0xbcd6ea);
   regColor(scene.fog.color, 0x071019, 0xc2d9ea);
-  regNum(scene.fog, 'near', 380, 420);
-  regNum(scene.fog, 'far', 850, 920);
+  regNum(scene.fog, 'near', 450, 800);
+  regNum(scene.fog, 'far', 900, 1600);
   regNum(renderer, 'toneMappingExposure', 1.08, 1.1);
 
   const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 1, 2000);
   const HOME_POS = new THREE.Vector3(-190, 265, 340);
-  const HOME_TARGET = new THREE.Vector3(0, 5, 0);
+  const HOME_TARGET = new THREE.Vector3(-70, 5, 0);
   camera.position.copy(HOME_POS);
   const controls = new THREE.OrbitControls(camera, canvas);
   controls.target.copy(HOME_TARGET);
@@ -318,7 +318,7 @@
   const skyDay = makeSkyDome(makeSky(true));
 
   function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-  const SITE_W = 240, SITE_D = 280;
+  const SITE_W = 240, SITE_D = 360;
   const W = 1680, H = 1960;
   const px = x => (x + SITE_W/2) / SITE_W * W;
   const py = z => (z + SITE_D/2) / SITE_D * H;
@@ -356,14 +356,14 @@
     g.fillStyle = vg; g.fillRect(0,0,W,H);
 
     g.fillStyle = P.plot;
-    g.fillRect(px(-105), py(-98), px(105)-px(-105), py(98)-py(-98));
+    g.fillRect(px(-105), py(-140), px(105)-px(-105), py(98)-py(-140));
 
-    const rg = g.createLinearGradient(0, py(-138), 0, py(-100));
+    const rg = g.createLinearGradient(0, py(-178), 0, py(-142));
     rg.addColorStop(0,P.river[0]); rg.addColorStop(.55,P.river[1]); rg.addColorStop(1,P.river[2]);
-    g.fillStyle = rg; g.fillRect(0, 0, W, py(-100));
+    g.fillStyle = rg; g.fillRect(0, 0, W, py(-142));
     g.strokeStyle = P.wave; g.lineWidth = 2;
     for(let i=0;i<16;i++){
-      const y = py(-136) + i*24;
+      const y = py(-176) + i*24;
       g.beginPath();
       for(let x=0;x<=W;x+=24){
         const yy = y + Math.sin(x*0.008 + i)*5;
@@ -371,8 +371,8 @@
       }
       g.stroke();
     }
-    g.fillStyle = P.bank; g.fillRect(0, py(-101.4), W, py(-100)-py(-101.4));
-    g.fillStyle = P.bankEdge; g.fillRect(0, py(-100.2), W, 2);
+    g.fillStyle = P.bank; g.fillRect(0, py(-143.4), W, py(-142)-py(-143.4));
+    g.fillStyle = P.bankEdge; g.fillRect(0, py(-142.2), W, 2);
 
     g.fillStyle = P.outer;
     g.fillRect(px(100), 0, px(120)-px(100), H);
@@ -427,7 +427,7 @@
     }
 
     g.textAlign='center'; g.fillStyle=P.lblRiver; g.font='500 30px "PingFang SC",sans-serif';
-    g.fillText('电 厂 河', px(0), py(-118));
+    g.fillText('电 厂 河', px(0), py(-161));
     g.save(); g.translate(px(110), py(10)); g.rotate(Math.PI/2); g.fillStyle=P.lblRoad; g.fillText('顾 扬 路',0,0); g.restore();
     g.textAlign='left'; g.fillStyle=P.lblRoad; g.fillText('朱 家 坝 路', px(-60), py(112));
 
@@ -445,9 +445,45 @@
   site.rotation.x = -Math.PI/2;
   site.receiveShadow = true;
   scene.add(site);
+  /* 外围草甸贴图（旷野风格，日夜双套） */
+  function drawMeadow(day){
+    const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 2048;
+    const g = cv.getContext('2d');
+    const P = day
+      ? {base:['#8abd63','#7aac55'], patch:['#9ccc6e','#6da148','#aad479','#7fb35a'], path:'rgba(203,178,122,.55)', dot:['#eef6dd','#f4e9ae','#dcefff','#f2d8e0']}
+      : {base:['#15261b','#101e14'], patch:['#1a2f21','#0d1a12','#1d3325','#132419'], path:'rgba(70,64,42,.35)', dot:['#33503f','#3d4a38','#2e4460']};
+    const grd = g.createLinearGradient(0,0,2048,2048);
+    grd.addColorStop(0,P.base[0]); grd.addColorStop(1,P.base[1]);
+    g.fillStyle = grd; g.fillRect(0,0,2048,2048);
+    const rnd = mulberry32(day ? 20261109 : 20261110);
+    for(let i=0;i<280;i++){
+      const x = rnd()*2048, y = rnd()*2048, r = 26+rnd()*130;
+      g.globalAlpha = .18+rnd()*.3;
+      g.fillStyle = P.patch[Math.floor(rnd()*P.patch.length)];
+      g.beginPath(); g.ellipse(x,y,r,r*(.4+rnd()*.45),rnd()*3,0,Math.PI*2); g.fill();
+    }
+    g.globalAlpha = 1;
+    g.strokeStyle = P.path; g.lineWidth = 24; g.lineCap = 'round';
+    [[-600,-500,-260,-140,40,-320],[300,600,520,260,640,-60]].forEach(seg=>{
+      g.beginPath();
+      g.moveTo(1024+seg[0], 1024+seg[1]);
+      g.bezierCurveTo(1024+seg[2], 1024+seg[3], 1024+seg[2], 1024+seg[3], 1024+seg[4], 1024+seg[5]);
+      g.stroke();
+    });
+    for(let i=0;i<420;i++){
+      g.globalAlpha = .3+rnd()*.4;
+      g.fillStyle = P.dot[Math.floor(rnd()*P.dot.length)];
+      g.beginPath(); g.arc(rnd()*2048, rnd()*2048, 2+rnd()*3.2, 0, 7); g.fill();
+    }
+    g.globalAlpha = 1;
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+    return tex;
+  }
+  const outerNightTex = drawMeadow(false);
+  const outerDayTex = drawMeadow(true);
   const outer = new THREE.Mesh(
-    new THREE.PlaneGeometry(1100, 1100),
-    new THREE.MeshStandardMaterial({color:0x060a10, roughness:1, metalness:0})
+    new THREE.PlaneGeometry(1600, 1600),
+    new THREE.MeshBasicMaterial({map: outerNightTex})
   );
   outer.rotation.x = -Math.PI/2;
   outer.position.y = -0.35;
@@ -455,13 +491,12 @@
 
   const river = new THREE.Mesh(
     new THREE.PlaneGeometry(SITE_W, 40),
-    new THREE.MeshStandardMaterial({color:0x0a2e44, roughness:0.35, metalness:0.05, transparent:true, opacity:0.86})
+    new THREE.MeshBasicMaterial({color:0x0a2e44, transparent:true, opacity:0.86})
   );
   river.rotation.x = -Math.PI/2;
-  river.position.set(0, 0.06, -120);
+  river.position.set(0, 0.06, -161);
   scene.add(river);
-  regColor(outer.material.color, 0x060a10, 0xb9c6bb);
-  regColor(river.material.color, 0x0a2e44, 0x6aa3c8);
+  regColor(river.material.color, 0x07202f, 0x4a8ab0);
   regNum(river.material, 'opacity', 0.86, 0.92);
 
   function makeTree(x,z,s,kind){
@@ -497,6 +532,156 @@
     treeSpots.forEach(p=>scene.add(makeTree(p.x,p.z,p.s,p.kind)));
   }
   createVegetation();
+
+  /* ---------- 京杭大运河（西侧中远景）+ 驳岸 + 滨河绿带 ---------- */
+  const canalGrp = new THREE.Group(); scene.add(canalGrp);
+  const canalMat = new THREE.MeshBasicMaterial({color:0x07202f, transparent:true, opacity:0.9});
+  const canal = new THREE.Mesh(new THREE.PlaneGeometry(170, 1080), canalMat);
+  canal.rotation.x = -Math.PI/2; canal.position.set(-350, 0.03, 0);
+  canalGrp.add(canal);
+  regColor(canalMat.color, 0x07202f, 0x4a8ab0);
+  regNum(canalMat, 'opacity', 0.9, 0.94);
+
+  const revetMat = new THREE.MeshBasicMaterial({color:0x1c2129});
+  regColor(revetMat.color, 0x1c2129, 0x8f8d84);
+  [-264.5, -435.5].forEach(x=>{
+    const b = new THREE.Mesh(new THREE.BoxGeometry(7, 2.2, 1080), revetMat);
+    b.position.set(x, 0.7, 0);
+    canalGrp.add(b);
+  });
+
+  const beltMat = new THREE.MeshBasicMaterial({color:0x0e2016});
+  regColor(beltMat.color, 0x0e2016, 0x7fae72);
+  const belt = new THREE.Mesh(new THREE.PlaneGeometry(30, 1080), beltMat);
+  belt.rotation.x = -Math.PI/2; belt.position.set(-246, 0.02, 0);
+  canalGrp.add(belt);
+
+  const bridgeMat = new THREE.MeshBasicMaterial({color:0x2a2f36});
+  regColor(bridgeMat.color, 0x2a2f36, 0xa8a49a);
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(196, 3, 14), bridgeMat);
+  bridge.position.set(-350, 3.4, 120);
+  canalGrp.add(bridge);
+  [-6.2, 6.2].forEach(zoff=>{
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(196, 1.1, 0.7), bridgeMat);
+    rail.position.set(-350, 5.4, 120 + zoff);
+    canalGrp.add(rail);
+  });
+
+  const cwTrunk = new THREE.MeshStandardMaterial({color:0x4b3321, roughness:0.95});
+  regColor(cwTrunk.color, 0x4b3321, 0x7a5636);
+  const cwLeafA = new THREE.MeshStandardMaterial({color:0x143b24, roughness:0.92});
+  regColor(cwLeafA.color, 0x143b24, 0x2f7a44);
+  const cwLeafB = new THREE.MeshStandardMaterial({color:0x163f25, roughness:0.92});
+  regColor(cwLeafB.color, 0x163f25, 0x35834a);
+  function cwTree(x, z, s){
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s);
+    const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 2.2, 5), cwTrunk); tr.position.y = 1.1; g.add(tr);
+    const lf = cwRnd() < 0.5 ? cwLeafA : cwLeafB;
+    const c1 = new THREE.Mesh(new THREE.ConeGeometry(2.4, 4.2, 6), lf); c1.position.y = 3.8; g.add(c1);
+    const c2 = new THREE.Mesh(new THREE.ConeGeometry(1.7, 3.0, 6), lf); c2.position.y = 5.4; g.add(c2);
+    return g;
+  }
+  const cwRnd = mulberry32(20261106);
+  for(let i=0;i<26;i++){
+    canalGrp.add(cwTree(-258 + cwRnd()*14, -520 + i*40 + cwRnd()*16, 0.9 + cwRnd()*0.7));
+  }
+
+  /* ---------- 旷野之息式外围: 丘陵 / 远山 / 树丛 / 岩石 (低饱和, 不抢焦点) ---------- */
+  const hillDefs = [
+    [330,-350,120,26],[450,150,140,30],[140,470,130,24],
+    [-60,590,150,30],[-540,-580,170,36],[560,480,130,26]
+  ];
+  const hillMat = new THREE.MeshStandardMaterial({color:0x1b2f22, roughness:1, flatShading:true});
+  regColor(hillMat.color, 0x1b2f22, 0x77b058);
+  const hillGeo = new THREE.SphereGeometry(1, 20, 12);
+  hillDefs.forEach(([x,z,r,h])=>{
+    const m = new THREE.Mesh(hillGeo, hillMat);
+    m.position.set(x, 0, z); m.scale.set(r, h, r);
+    canalGrp.add(m);
+  });
+
+  const mtnMat = new THREE.MeshStandardMaterial({color:0x080d18, roughness:1, flatShading:true});
+  regColor(mtnMat.color, 0x080d18, 0x5f7396);
+  const capMat = new THREE.MeshStandardMaterial({color:0x1c2739, roughness:1, flatShading:true});
+  regColor(capMat.color, 0x1c2739, 0xdde8f2);
+  const mtnGeo = new THREE.ConeGeometry(1, 1, 5);
+  [[-805,-575,260,135],[288,-874,300,150],[805,-483,240,125],[897,230,260,135],[575,782,280,145],[-518,874,300,150],[-909,345,260,130]].forEach(([x,z,r,h])=>{
+    const m = new THREE.Mesh(mtnGeo, mtnMat);
+    m.position.set(x, h/2 - 4, z); m.scale.set(r, h, r);
+    canalGrp.add(m);
+    const cap = new THREE.Mesh(mtnGeo, capMat);
+    cap.position.set(x, h - h*0.16 - 4, z); cap.scale.set(r*0.38, h*0.34, r*0.38);
+    canalGrp.add(cap);
+  });
+
+  const bwTrunk = new THREE.MeshStandardMaterial({color:0x2a2118, roughness:1, flatShading:true});
+  regColor(bwTrunk.color, 0x2a2118, 0x8a6b48);
+  const bwLeaf1 = new THREE.MeshStandardMaterial({color:0x14301e, roughness:1, flatShading:true});
+  regColor(bwLeaf1.color, 0x14301e, 0x5faf52);
+  const bwLeaf2 = new THREE.MeshStandardMaterial({color:0x17351f, roughness:1, flatShading:true});
+  regColor(bwLeaf2.color, 0x17351f, 0x6cbf5c);
+  const bwLeaf3 = new THREE.MeshStandardMaterial({color:0x112a19, roughness:1, flatShading:true});
+  regColor(bwLeaf3.color, 0x112a19, 0x4f9e4a);
+  const bwTrunkGeo = new THREE.CylinderGeometry(0.35, 0.55, 3.2, 5);
+  const bwBlobGeo = new THREE.SphereGeometry(2.4, 7, 5);
+  const bwRnd = mulberry32(20261107);
+  function bwTree(x, z, s){
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s);
+    const t = new THREE.Mesh(bwTrunkGeo, bwTrunk); t.position.y = 1.6; g.add(t);
+    const lf = bwRnd() < .33 ? bwLeaf1 : (bwRnd() < .5 ? bwLeaf2 : bwLeaf3);
+    const b1 = new THREE.Mesh(bwBlobGeo, lf); b1.position.y = 4.4; b1.scale.set(1.15, .95, 1.15); g.add(b1);
+    const b2 = new THREE.Mesh(bwBlobGeo, lf); b2.position.set(.9, 5.6, .4); b2.scale.setScalar(.72); g.add(b2);
+    const b3 = new THREE.Mesh(bwBlobGeo, lf); b3.position.set(-.9, 5.3, -.5); b3.scale.setScalar(.6); g.add(b3);
+    return g;
+  }
+  [[260,-260],[420,-60],[300,260],[60,330],[-180,300],[-60,-280],
+   [180,-420],[-260,-320],[520,60],[420,360],[-320,180],[-520,420],
+   [620,-260],[240,560],[-140,-480],[640,300]].forEach(([cx,cz])=>{
+    const n = 4 + Math.floor(bwRnd()*5);
+    for(let i=0;i<n;i++){
+      const a = bwRnd()*6.283, r = 6 + bwRnd()*40;
+      const x = cx + Math.cos(a)*r, z = cz + Math.sin(a)*r;
+      if(x > -140 && x < 140 && z > -210 && z < 210) continue;                    // 避让小区
+      if(x > -460 && x < -240 && z > -560 && z < 560) continue;                    // 避让运河
+      if(hillDefs.some(([hx,hz,hr]) => (x-hx)*(x-hx) + (z-hz)*(z-hz) < (hr+24)*(hr+24))) continue; // 避让丘陵
+      canalGrp.add(bwTree(x, z, 0.9 + bwRnd()*0.8));
+    }
+  });
+
+  const rockMat = new THREE.MeshStandardMaterial({color:0x272e38, roughness:1, flatShading:true});
+  regColor(rockMat.color, 0x272e38, 0x98a0ac);
+  const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+  for(let i=0;i<12;i++){
+    const a = bwRnd()*6.283, r = 220 + bwRnd()*380;
+    const x = Math.cos(a)*r, z = Math.sin(a)*r;
+    if(x > -460 && x < -240 && z > -560 && z < 560) continue;
+    const m = new THREE.Mesh(rockGeo, rockMat);
+    const s = 1.6 + bwRnd()*3.4;
+    m.position.set(x, s*0.4, z); m.scale.set(s, s*0.7, s); m.rotation.y = bwRnd()*3;
+    canalGrp.add(m);
+  }
+
+  /* 顾扬路行道树（小区东侧道路，x≈110 为道路中心线） */
+  for(let i=0;i<11;i++){
+    const z = -120 + i*20 + cwRnd()*8;
+    scene.add(makeTree(94 + cwRnd()*4, z, 0.8 + cwRnd()*0.5, cwRnd()));
+    if(i % 2 === 0) scene.add(makeTree(128 + cwRnd()*4, z + 10, 0.8 + cwRnd()*0.5, cwRnd()));
+  }
+
+  /* 运河标注 */
+  (function(){
+    const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 128;
+    const g = cv.getContext('2d');
+    g.font = '500 72px "PingFang SC",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#fff'; g.fillText('京 杭 大 运 河', 512, 64);
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+    const mat = new THREE.SpriteMaterial({map:tex, transparent:true, opacity:0.8, depthWrite:false});
+    regColor(mat.color, 0x93a9be, 0x3d5a74);
+    const sp = new THREE.Sprite(mat);
+    sp.scale.set(150, 19, 1); sp.position.set(-350, 26, -60);
+    canalGrp.add(sp);
+  })();
+
 
   function createWaterPlay(){
     const group = new THREE.Group();
@@ -862,6 +1047,7 @@
     themeTarget = day ? 1 : 0;
     if(instant) themeT = themeTarget;
     siteMat.map = day ? siteDay.tex : siteNight.tex; siteMat.needsUpdate = true;
+    outer.material.map = day ? outerDayTex : outerNightTex; outer.material.needsUpdate = true;
     facades.forEach(f=>{
       const k = day ? 'd' : 'n';
       if(!f[k]) f[k] = makeFacade(f.b, day);
@@ -963,7 +1149,7 @@
   });
   animate();
   setTimeout(()=>document.getElementById('load').classList.add('done'), 420);
-  window.__MODEL = {D, openPanel, resetView};
+  window.__MODEL = {D, openPanel, resetView, scene, canalGrp};
 })();
 </script>
 </body>
