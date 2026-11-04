@@ -882,7 +882,7 @@
     });
   }
   themeBtn.addEventListener('click', ()=>applyTheme(themeTarget < 0.5));
-  applyTheme((()=>{ try{ return localStorage.getItem('spax-theme') === 'day'; }catch(_){ return false; } })(), true);
+  applyTheme((()=>{ try{ return localStorage.getItem('spax-theme') !== 'night'; }catch(_){ return true; } })(), true);
 
   function toNDC(e){
     mouse.x = (e.clientX / innerWidth) * 2 - 1;

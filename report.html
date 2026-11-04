@@ -373,8 +373,8 @@
     try{ localStorage.setItem('spax-theme', day ? 'day' : 'night'); }catch(_){}
   }
   btn.addEventListener('click', ()=>apply(!document.body.classList.contains('day')));
-  let saved = false;
-  try{ saved = localStorage.getItem('spax-theme') === 'day'; }catch(_){}
+  let saved = true;
+  try{ saved = localStorage.getItem('spax-theme') !== 'night'; }catch(_){}
   apply(saved);
 })();
 </script>
