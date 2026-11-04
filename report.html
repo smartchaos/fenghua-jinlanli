@@ -370,11 +370,11 @@
   function apply(day){
     document.body.classList.toggle('day', day);
     txt.textContent = day ? '夜间模式' : '日间模式';
-    try{ localStorage.setItem('spax-theme', day ? 'day' : 'night'); }catch(_){}
+    try{ localStorage.setItem('spax-theme-v2', day ? 'day' : 'night'); }catch(_){}
   }
   btn.addEventListener('click', ()=>apply(!document.body.classList.contains('day')));
   let saved = true;
-  try{ saved = localStorage.getItem('spax-theme') !== 'night'; }catch(_){}
+  try{ saved = localStorage.getItem('spax-theme-v2') !== 'night'; }catch(_){}
   apply(saved);
 })();
 </script>
