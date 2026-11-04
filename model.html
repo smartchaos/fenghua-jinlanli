@@ -417,6 +417,7 @@
       const x = -110 + rnd()*220;
       const z = -95 + rnd()*190;
       if(rects.some(r=>Math.abs(x-r.x)<r.w && Math.abs(z-r.z)<r.d)) continue;
+      if(x > 97 && x < 123) continue;                                   // 避让东路(x100..120)及树冠
       treeSpots.push({x,z,s:0.75+rnd()*0.75,kind:rnd()});
       const rr = 2.6 + rnd()*4.4;
       const shade = P.treeLo + Math.floor(rnd()*P.treeSpan);
