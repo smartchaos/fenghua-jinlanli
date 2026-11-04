@@ -671,6 +671,23 @@
     geo.rotateX(-Math.PI/2); geo.rotateY(Math.PI/2);
     return geo;
   }
+  function roadTexMatX(len){   // 纹理长轴沿 u(盒体顶面用): 边线在 v 两侧, 虚线沿 u
+    const draw = day=>{
+      const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64;
+      const g = cv.getContext('2d');
+      g.fillStyle = day ? '#3d4248' : '#101317'; g.fillRect(0,0,512,64);
+      g.fillStyle = day ? 'rgba(255,255,255,.92)' : 'rgba(228,235,242,.6)';
+      g.fillRect(0,3,512,3); g.fillRect(0,58,512,3);       // 边线
+      for(let x=12;x<512;x+=64) g.fillRect(x,29,32,6);     // 中央虚线
+      const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+      t.wrapS = THREE.RepeatWrapping; t.repeat.set(len/80, 1);
+      return t;
+    };
+    const m = new THREE.MeshBasicMaterial({map: draw(false)});
+    m.userData.nightTex = draw(false); m.userData.dayTex = draw(true);
+    themedMats.push(m);
+    return m;
+  }
   /* 东路: 南北延伸至远方, 止于跨河桥两端(桥面承接), 避免与桥面叠层 */
   [[-495, 610], [334, 932]].forEach(([cz, len])=>{
     const r = new THREE.Mesh(roadGeo(len), roadTexMat(len));
@@ -700,9 +717,9 @@
     r.position.set(-66, 0.025, RZ);
     canalGrp.add(r);
   }
-  { // 交叉口无缝补丁: 纯沥青(按路面 mip 混合白线后的等效色), 无边界
-    const patch = new THREE.Mesh(new THREE.PlaneGeometry(20.4, 20.4).rotateX(-Math.PI/2), flatMat(0x101317, 0x3d4248));
-    patch.position.set(RX, 0.035, RZ);
+  { // 交叉口无缝补丁: 同色系纯沥青薄盒, 顶面即补丁面, 无叠层间隙
+    const patch = new THREE.Mesh(new THREE.BoxGeometry(20.4, 0.12, 20.4), flatMat(0x101317, 0x3d4248));
+    patch.position.set(RX, 0.035 - 0.06, RZ);
     canalGrp.add(patch);
   }
   /* 红绿灯（南路×东路交叉口, 对角两台） */
@@ -733,29 +750,26 @@
   const bridgeTowerMat = flatMat(0x272c33, 0xc9ced4);
   const bridgeCableMat = flatMat(0x39424c, 0xdde3e8);
   const bridgeAsphalt = flatMat(0x101317, 0x3d4248);   // 与南路同色系沥青
-  /* 桥面压低接近路面(底 0.2 / 顶 1.8), 两端引道缓坡衔接, 舟可穿行 */
-  const deckBase = new THREE.Mesh(new THREE.BoxGeometry(210, 1.6, 17), bridgeAsphalt);
+  /* 桥面压低接近路面(底 0.2 / 顶 1.8); 道路纹理直接作盒体顶面材质, 无叠层间隙 */
+  const deckBase = new THREE.Mesh(
+    new THREE.BoxGeometry(210, 1.6, 17),
+    [bridgeAsphalt, bridgeAsphalt, roadTexMatX(210), bridgeAsphalt, bridgeAsphalt, bridgeAsphalt]
+  );
   deckBase.position.set(-350, 1.0, RZ);
   canalGrp.add(deckBase);
-  const deckTop = new THREE.Mesh(roadGeoEW(210), roadTexMat(210));
-  deckTop.position.set(-350, 1.82, RZ);
-  deckTop.scale.z = 17/20;
-  canalGrp.add(deckTop);
   [-8.2, 8.2].forEach(zoff=>{
     const rail = new THREE.Mesh(new THREE.BoxGeometry(210, 0.9, 0.6), bridgeTowerMat);
     rail.position.set(-350, 2.3, RZ + zoff);
     canalGrp.add(rail);
   });
   [[-245, -205, -0.0375], [-455, -495, 0.0375]].forEach(([x1, x2, rot])=>{
-    const rampBase = new THREE.Mesh(new THREE.BoxGeometry(44, 0.8, 17), bridgeAsphalt);
+    const rampBase = new THREE.Mesh(
+      new THREE.BoxGeometry(44, 0.8, 17),
+      [bridgeAsphalt, bridgeAsphalt, roadTexMatX(44), bridgeAsphalt, bridgeAsphalt, bridgeAsphalt]
+    );
     rampBase.position.set((x1 + x2)/2, 1.02, RZ);
     rampBase.rotation.z = rot;
     canalGrp.add(rampBase);
-    const rampTop = new THREE.Mesh(roadGeoEW(44), roadTexMat(44));
-    rampTop.position.set((x1 + x2)/2, 1.44, RZ);
-    rampTop.rotation.z = rot;
-    rampTop.scale.z = 17/20;
-    canalGrp.add(rampTop);
   });
   [-7, 7].forEach(zoff=>{
     const tower = new THREE.Mesh(new THREE.BoxGeometry(1.5, 36, 1.5), bridgeTowerMat);
