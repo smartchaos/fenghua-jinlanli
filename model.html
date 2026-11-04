@@ -555,7 +555,7 @@
 
   /* 驳岸: 东岸在电厂河口留缺口 (-184..-138), 西岸贯通 */
   const revetMat = flatMat(0x232a33, 0x8f8d84);
-  [[-492, 616], [308, 942]].forEach(([cz, len])=>{
+  [[-492, 616], [331, 938]].forEach(([cz, len])=>{
     const b = new THREE.Mesh(new THREE.BoxGeometry(7, 2.2, len), revetMat);
     b.position.set(-264.5, 0.7, cz);
     canalGrp.add(b);
@@ -566,7 +566,7 @@
 
   /* 滨河绿带: 同样在河口留缺口 */
   const beltMat = flatMat(0x11231a, 0x7fae72);
-  [[-492, 616], [308, 942]].forEach(([cz, len])=>{
+  [[-492, 616], [331, 938]].forEach(([cz, len])=>{
     const belt = new THREE.Mesh(new THREE.PlaneGeometry(30, len), beltMat);
     belt.rotation.x = -Math.PI/2; belt.position.set(-246, 0.02, cz);
     canalGrp.add(belt);
@@ -606,7 +606,7 @@
   /* ---------- 旷野之息式外围: 丘陵 / 远山 / 树丛 / 岩石 (低饱和, 不抢焦点) ---------- */
   const hillDefs = [
     [330,-350,120,26],[450,150,140,30],[140,470,130,24],
-    [-60,590,150,30],[-540,-580,170,36],[560,480,130,26]
+    [-60,590,150,30],[-660,-640,170,36],[560,480,130,26]
   ];
   const hillMat = new THREE.MeshStandardMaterial({color:0x1b2f22, roughness:1, flatShading:true});
   regColor(hillMat.color, 0x1b2f22, 0x77b058);

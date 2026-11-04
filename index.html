@@ -603,7 +603,7 @@
   /* ---------- 旷野之息式外围: 丘陵 / 远山 / 树丛 / 岩石 (低饱和, 不抢焦点) ---------- */
   const hillDefs = [
     [330,-350,120,26],[450,150,140,30],[140,470,130,24],
-    [-60,590,150,30],[-540,-580,170,36],[560,480,130,26]
+    [-60,590,150,30],[-660,-640,170,36],[560,480,130,26]
   ];
   const hillMat = new THREE.MeshStandardMaterial({color:0x1b2f22, roughness:1, flatShading:true});
   regColor(hillMat.color, 0x1b2f22, 0x77b058);
@@ -717,10 +717,10 @@
     canalGrp.add(b);
   });
 
-  /* 顾扬路行道树（小区东侧道路 x72..90，中心线 x81） */
+  /* 顾扬路行道树（小区东侧道路 x72..90，中心线 x81；西排挪至路肩 x64 避免压在路面） */
   for(let i=0;i<13;i++){
     const z = -160 + i*26 + cwRnd()*8;
-    canalGrp.add(cwTree(76 + cwRnd()*3, z, 0.85 + cwRnd()*0.5));
+    canalGrp.add(cwTree(64 + cwRnd()*3, z, 0.85 + cwRnd()*0.5));
     if(i % 2) canalGrp.add(cwTree(98 + cwRnd()*3, z + 12, 0.85 + cwRnd()*0.5));
   }
 
