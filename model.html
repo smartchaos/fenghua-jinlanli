@@ -332,6 +332,8 @@
       path:'#1b2629', pathDash:'rgba(210,200,180,.10)',
       belt:'rgba(22,44,34,.55)',
       treeLo:22, treeSpan:22, treeFill:s=>`rgba(${s},${s+22},${s+12},.55)`, treeHi:'rgba(120,170,130,.07)',
+      flower:{soil:'#0d1811', edge:'rgba(64,76,64,.45)', green:'#15261a', greenHi:'#1c3323',
+        red:'#571f28', orange:'#59311c', yellow:'#57491c', pink:'#572e3e', white:'#3e3e3c'},
       lblRiver:'rgba(130,165,180,.45)', lblRoad:'rgba(150,160,175,.38)'
     },
     day: {
@@ -342,6 +344,8 @@
       path:'#e3ded1', pathDash:'rgba(130,120,105,.28)',
       belt:'rgba(76,116,62,.5)',
       treeLo:64, treeSpan:30, treeFill:s=>`rgba(${s},${s+34},${s+18},.5)`, treeHi:'rgba(235,245,220,.15)',
+      flower:{soil:'#41622f', edge:'rgba(214,218,192,.85)', green:'#4e7a37', greenHi:'#689a4b',
+        red:'#cf4453', orange:'#dd7a3a', yellow:'#dcb63c', pink:'#d87f9e', white:'#edede7'},
       lblRiver:'rgba(45,70,88,.55)', lblRoad:'rgba(70,82,95,.5)'
     }
   };
@@ -409,6 +413,69 @@
      [-70,-68,30,8],[-15,-68,30,8],[35,-68,30,8],[80,-68,30,8]].forEach(([x,z,w,d])=>{
       g.beginPath(); g.ellipse(px(x),py(z), px(w)-px(0), py(d)-py(0), 0, 0, Math.PI*2); g.fill();
     });
+
+    /* ---------- 南北两侧模纹花坛(鲜花图案) ---------- */
+    const F = P.flower;
+    const Sx = v => px(v) - px(0);
+    const Sy = v => py(v) - py(0);
+    function circleBed(cx, cz, r, ringCol, fillCol, dotCol){
+      const X = px(cx), Y = py(cz), R = Sx(r), RW = Sx(0.8);
+      g.fillStyle = F.edge; g.beginPath(); g.arc(X, Y, R + RW + 1.5, 0, Math.PI*2); g.fill();
+      g.fillStyle = F.soil; g.beginPath(); g.arc(X, Y, R + RW, 0, Math.PI*2); g.fill();
+      g.fillStyle = fillCol; g.beginPath(); g.arc(X, Y, R, 0, Math.PI*2); g.fill();
+      g.strokeStyle = ringCol; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(X, Y, R - 1.5, 0, Math.PI*2); g.stroke();
+      g.fillStyle = dotCol; g.beginPath(); g.arc(X, Y, Math.max(3, R*0.22), 0, Math.PI*2); g.fill();
+      g.fillStyle = ringCol;
+      const n = Math.max(10, Math.round(R/2.2));
+      for(let i=0;i<n;i++){
+        const a = i/n*Math.PI*2;
+        g.beginPath(); g.arc(X + Math.cos(a)*(R-1.5), Y + Math.sin(a)*(R-1.5), 1.6, 0, Math.PI*2); g.fill();
+      }
+    }
+    function waveBand(zc, amp, colA, colB, x0, x1){
+      const hw = Sy(2.4);
+      const Y = x => py(zc + amp*Math.sin(x*0.055));
+      g.fillStyle = F.soil;
+      g.beginPath();
+      let first = true;
+      for(let x=x0;x<=x1;x+=2){ const X=px(x); if(first){ g.moveTo(X, Y(x)-hw); first=false; } else g.lineTo(X, Y(x)-hw); }
+      for(let x=x1;x>=x0;x-=2){ g.lineTo(px(x), Y(x)+hw); }
+      g.closePath(); g.fill();
+      let k = 0;
+      for(let x=x0+2;x<x1-1;x+=3.2){
+        g.fillStyle = (k%2) ? colA : colB;
+        g.beginPath(); g.arc(px(x), Y(x)-hw*0.45, 1.7, 0, Math.PI*2); g.fill();
+        g.fillStyle = (k%2) ? colB : colA;
+        g.beginPath(); g.arc(px(x+1.6), Y(x)+hw*0.45, 1.7, 0, Math.PI*2); g.fill();
+        k++;
+      }
+    }
+    function diamondPatch(cx, cz, cols, rows, size, colA, colB){
+      g.fillStyle = F.soil;
+      g.fillRect(px(cx - cols*size), py(cz - rows*size), Sx(cols*size*2), Sy(rows*size*2));
+      const sx = Sx(size), sy = Sy(size);
+      for(let i=0;i<cols*2;i++){
+        for(let j=0;j<rows*2;j++){
+          const X = px(cx - cols*size + (i+0.5)*size), Y = py(cz - rows*size + (j+0.5)*size);
+          g.fillStyle = ((i+j)%2) ? colA : colB;
+          g.beginPath();
+          g.moveTo(X, Y-sy*0.42); g.lineTo(X+sx*0.42, Y); g.lineTo(X, Y+sy*0.42); g.lineTo(X-sx*0.42, Y);
+          g.closePath(); g.fill();
+        }
+      }
+    }
+    /* 南侧: 中轴主花坛 + 两侧圆坛 + 波浪花带 + 菱形格纹 */
+    circleBed(10, 118, 13, F.red, F.greenHi, F.white);
+    circleBed(-48, 118, 8, F.pink, F.green, F.yellow);
+    circleBed(66, 118, 8, F.orange, F.green, F.red);
+    waveBand(131, 2.2, F.yellow, F.red, -106, 95);
+    diamondPatch(-88, 110, 2, 2, 4.5, F.pink, F.white);
+    diamondPatch(85, 109, 2, 2, 4.5, F.yellow, F.orange);
+    /* 北侧: 双波浪花带 + 小圆坛一列 */
+    waveBand(-127, 2.0, F.pink, F.white, -106, 95);
+    waveBand(-112, 1.8, F.yellow, F.orange, -106, 95);
+    [-80,-52,-24,4,32,60,88].forEach(x=> circleBed(x, -119.5, 3.5, F.red, F.green, F.white));
 
     const rects = B.map(b=>({x:b.x,z:b.z,w:(b.type==='洋房'?44:38)/2+7,d:(b.type==='洋房'?16:14)/2+7}));
     const rnd = mulberry32(20261104);
@@ -610,56 +677,21 @@
     r.position.set(RX, 0.015, cz);
     canalGrp.add(r);
   });
-  { // 东路跨河拱桥: 缓坡引道衔接 + 平直沥青桥面 + 椭圆拱肋立柱
-    const archConc = flatMat(0x272c33, 0xc9ced4);
-    const archAsphalt = flatMat(0x101317, 0x3d4248);
-    const CZR = -161, HALF = 23, DECKY = 4.5, RAMP = 55;
-    const slopeA = Math.atan((DECKY - 0.1) / RAMP);
-    const zN = CZR - HALF, zS = CZR + HALF;
-    [[zN - RAMP, zN], [zS, zS + RAMP]].forEach(([z1, z2])=>{
-      const len = z2 - z1, cz = (z1 + z2) / 2;
-      const LL = Math.hypot(len, DECKY - 0.1) + 1;
-      const rot = z1 < CZR ? -slopeA : slopeA;
-      const base = new THREE.Mesh(new THREE.BoxGeometry(22, 0.9, LL), archAsphalt);
-      base.position.set(RX, (0.1 + DECKY) / 2 - 0.45, cz);
-      base.rotation.x = rot;
-      canalGrp.add(base);
-      [-10.2, 10.2].forEach(xoff=>{
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, LL), archConc);
-        rail.position.set(RX + xoff, (0.1 + DECKY) / 2 + 0.45, cz);
-        rail.rotation.x = rot;
-        canalGrp.add(rail);
-      });
-    });
-    const top = new THREE.Mesh(new THREE.BoxGeometry(22, 0.9, HALF * 2), archAsphalt);
-    top.position.set(RX, DECKY - 0.45, CZR);
+  { // 东路跨河桥: 平直桥面与路面齐平延续, 两侧白色护栏
+    const bridgeW = flatMat(0x101317, 0x3d4248);
+    const railWhite = flatMat(0x8f959d, 0xf2f2ee);
+    const CZR = -161, SPAN = 58;
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(20, 0.9, SPAN), bridgeW);
+    deck.position.set(RX, -0.42, CZR);          // 顶面 y0.03, 与路面齐平
+    canalGrp.add(deck);
+    const top = new THREE.Mesh(roadGeo(SPAN), roadTexMat(SPAN));
+    top.position.set(RX, 0.045, CZR);
     canalGrp.add(top);
-    [-10.2, 10.2].forEach(xoff=>{
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, HALF * 2), archConc);
-      rail.position.set(RX + xoff, DECKY + 0.55, CZR);
+    [-9.7, 9.7].forEach(xoff=>{
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.15, SPAN), railWhite);
+      rail.position.set(RX + xoff, 0.6, CZR);
       canalGrp.add(rail);
     });
-    const RIB = 9;
-    for(let i = 0; i < RIB; i++){
-      const t0 = i / RIB, t1 = (i + 1) / RIB;
-      const za = zN + t0 * HALF * 2, zb = zN + t1 * HALF * 2;
-      const ya = 0.2 + 3.4 * Math.sin(Math.PI * t0), yb = 0.2 + 3.4 * Math.sin(Math.PI * t1);
-      const len = Math.hypot(zb - za, yb - ya);
-      const ang = -Math.atan2(yb - ya, zb - za);
-      [-7, 7].forEach(xoff=>{
-        const rib = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, len + 0.3), archConc);
-        rib.position.set(RX + xoff, (ya + yb) / 2, (za + zb) / 2);
-        rib.rotation.x = ang;
-        canalGrp.add(rib);
-      });
-      if(i > 0 && i % 2 === 0){
-        [-7, 7].forEach(xoff=>{
-          const post = new THREE.Mesh(new THREE.BoxGeometry(0.45, DECKY - ya, 0.45), archConc);
-          post.position.set(RX + xoff, (DECKY + ya) / 2, za);
-          canalGrp.add(post);
-        });
-      }
-    }
   }
   { // 南路: 斜拉桥东端 → 穿过东路, 交叉口由无缝补丁收口
     const len = 372;
