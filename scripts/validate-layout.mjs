@@ -30,14 +30,18 @@ assert.equal(b[1].z, 85, '1# must be on land, not on 朱家坝路');
 assert.equal(b[2].z, 85, '2# must be on land, not on 朱家坝路');
 assert.ok(b[1].x > b[2].x, '1# is to the right of 2#');
 assert.ok(Math.abs(b[1].x - b[2].x) >= 90, 'left-right spacing must be increased by 30%');
-assert.equal(b[4].z, 30, '4# must be behind 1#/2#');
-assert.equal(b[5].z, 30, '5# must be behind 1#/2#');
-assert.equal(b[6].z, -5, '6# must be behind 4#/5#');
-assert.equal(b[7].z, -5, '7# must be behind 4#/5#');
-assert.equal(b[9].z, -50, '9# must be behind 6#/7#');
-assert.equal(b[10].z, -50, '10# must be behind 6#/7#');
-assert.equal(b[11].z, -80, '11# must be at the back');
-assert.equal(b[12].z, -80, '12# must be at the back');
+assert.equal(b[4].z, 37, '4# must be behind 1#/2#');
+assert.equal(b[5].z, 37, '5# must be behind 1#/2#');
+assert.equal(b[6].z, -6, '6# must be behind 4#/5#');
+assert.equal(b[7].z, -6, '7# must be behind 4#/5#');
+assert.equal(b[9].z, -49, '9# must be behind 6#/7#');
+assert.equal(b[10].z, -49, '10# must be behind 6#/7#');
+assert.equal(b[11].z, -88, '11# must be at the back');
+assert.equal(b[12].z, -88, '12# must be at the back');
+// 南北向楼间距: 4#-6# 与 9#-11# 的净距（中心距减双方基座半深）
+const clear = (a, b2) => (b[a].z - b[b2].z) - (b[a].type === '洋房' ? 9.6 : 8.6) - (b[b2].type === '洋房' ? 9.6 : 8.6);
+assert.ok(clear(4, 6) >= 25, `4#-6# clear spacing must be >= 25, got ${clear(4, 6)}`);
+assert.ok(clear(9, 11) >= 19, `9#-11# clear spacing must be >= 19, got ${clear(9, 11)}`);
 
 for (const building of data.buildings) {
   const halfW = building.type === '洋房' ? 22 : 19;

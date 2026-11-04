@@ -431,9 +431,9 @@
     const paths = [
       [[-82,135],[82,135]],
       [[-82,95],[82,95]],
-      [[-82,35],[82,35]],
-      [[-82,-25],[82,-25]],
-      [[-82,-65],[82,-65]],
+      [[-82,15],[82,15]],
+      [[-82,-28],[82,-28]],
+      [[-82,-68],[82,-68]],
       [[-82,-105],[82,-105]],
     ];
     paths.forEach(p=>{
@@ -449,17 +449,17 @@
     });
     g.setLineDash([]);
 
-    // plaza + pool (central garden)
+    // plaza + pool (central garden, C/D 排间隙)
     g.fillStyle = P.plaza;
-    g.beginPath(); g.ellipse(px(0), py(35), px(28)-px(0), py(18)-py(0), 0, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(px(0), py(15), px(28)-px(0), py(18)-py(0), 0, 0, Math.PI*2); g.fill();
     g.fillStyle = P.pool;
-    g.beginPath(); g.ellipse(px(0), py(35), px(18)-px(0), py(10)-py(0), 0, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(px(0), py(15), px(18)-px(0), py(10)-py(0), 0, 0, Math.PI*2); g.fill();
     g.strokeStyle = P.poolEdge; g.lineWidth = 2;
-    g.beginPath(); g.ellipse(px(0), py(35), px(18)-px(0), py(10)-py(0), 0, 0, Math.PI*2); g.stroke();
+    g.beginPath(); g.ellipse(px(0), py(15), px(18)-px(0), py(10)-py(0), 0, 0, Math.PI*2); g.stroke();
 
     // lawns in the row gaps
     g.fillStyle = P.belt;
-    [[0,135,16,6],[0,95,16,6],[0,-65,16,6],[0,-105,16,6]].forEach(([x,z,w,d])=>{
+    [[0,135,16,6],[0,95,16,6],[0,15,16,6],[0,-68,16,6],[0,-105,16,6]].forEach(([x,z,w,d])=>{
       g.beginPath(); g.ellipse(px(x),py(z), px(w)-px(0), py(d)-py(0), 0, 0, Math.PI*2); g.fill();
     });
 
