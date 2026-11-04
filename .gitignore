@@ -4,3 +4,5 @@ __pycache__/
 .DS_Store
 data/raw/
 data/members.csv
+node_modules/
+dist/
