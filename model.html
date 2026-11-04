@@ -648,13 +648,20 @@
   const bridgeDeckMat = flatMat(0x23282e, 0xb9bec5);
   const bridgeTowerMat = flatMat(0x272c33, 0xc9ced4);
   const bridgeCableMat = flatMat(0x39424c, 0xdde3e8);
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(210, 2.6, 17), bridgeDeckMat);
-  deck.position.set(-350, 3.6, RZ);
+  /* 桥面压低接近路面(底 0.2 / 顶 1.8), 两端引道缓坡衔接, 舟可穿行 */
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(210, 1.6, 17), bridgeDeckMat);
+  deck.position.set(-350, 1.0, RZ);
   canalGrp.add(deck);
   [-8.2, 8.2].forEach(zoff=>{
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(210, 1.0, 0.6), bridgeDeckMat);
-    rail.position.set(-350, 5.3, RZ + zoff);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(210, 0.9, 0.6), bridgeDeckMat);
+    rail.position.set(-350, 2.3, RZ + zoff);
     canalGrp.add(rail);
+  });
+  [[-245, -205, -0.0375], [-455, -495, 0.0375]].forEach(([x1, x2, rot])=>{
+    const ramp = new THREE.Mesh(new THREE.BoxGeometry(44, 0.8, 17), bridgeDeckMat);
+    ramp.position.set((x1 + x2)/2, 1.02, RZ);
+    ramp.rotation.z = rot;
+    canalGrp.add(ramp);
   });
   [-7, 7].forEach(zoff=>{
     const tower = new THREE.Mesh(new THREE.BoxGeometry(1.8, 36, 1.8), bridgeTowerMat);
@@ -676,8 +683,8 @@
   }
   [-7, 7].forEach(zoff=>{
     [30, 60, 90].forEach(dx=>{
-      canalGrp.add(cable(-350, 34.5, RZ + zoff, -350 - dx, 5, RZ + zoff));
-      canalGrp.add(cable(-350, 34.5, RZ + zoff, -350 + dx, 5, RZ + zoff));
+      canalGrp.add(cable(-350, 34.5, RZ + zoff, -350 - dx, 2.0, RZ + zoff));
+      canalGrp.add(cable(-350, 34.5, RZ + zoff, -350 + dx, 2.0, RZ + zoff));
     });
   });
 
@@ -705,8 +712,8 @@
 
   /* ---------- 旷野之息式外围: 丘陵 / 远山 / 树丛 / 岩石 (低饱和, 不抢焦点) ---------- */
   const hillDefs = [
-    [330,-350,120,26],[450,150,140,30],[140,470,130,24],
-    [-60,590,150,30],[-660,-640,170,36],[560,480,130,26]
+    [330,-350,120,26],[450,150,140,30],[300,470,130,24],
+    [-95,590,150,30],[-660,-640,170,36],[560,480,130,26]
   ];
   const hillMat = new THREE.MeshStandardMaterial({color:0x1b2f22, roughness:1, flatShading:true});
   regColor(hillMat.color, 0x1b2f22, 0x77b058);
@@ -760,6 +767,8 @@
       const x = cx + Math.cos(a)*r, z = cz + Math.sin(a)*r;
       if(x > -140 && x < 140 && z > -210 && z < 210) continue;                    // 避让小区
       if(x > -460 && x < -240 && z > -560 && z < 560) continue;                    // 避让运河
+      if(Math.abs(x - RX) < 13) continue;                                          // 避让东路走廊
+      if(Math.abs(z - 150) < 13 && x > -260 && x < 130) continue;                  // 避让南路走廊
       if(hillDefs.some(([hx,hz,hr]) => (x-hx)*(x-hx) + (z-hz)*(z-hz) < (hr+24)*(hr+24))) continue; // 避让丘陵
       canalGrp.add(bwTree(x, z, 0.9 + bwRnd()*0.8));
     }
@@ -772,6 +781,8 @@
     const a = bwRnd()*6.283, r = 220 + bwRnd()*380;
     const x = Math.cos(a)*r, z = Math.sin(a)*r;
     if(x > -460 && x < -240 && z > -560 && z < 560) continue;
+    if(Math.abs(x - RX) < 13) continue;
+    if(Math.abs(z - 150) < 13 && x > -260 && x < 130) continue;
     const m = new THREE.Mesh(rockGeo, rockMat);
     const s = 1.6 + bwRnd()*3.4;
     m.position.set(x, s*0.4, z); m.scale.set(s, s*0.7, s); m.rotation.y = bwRnd()*3;
