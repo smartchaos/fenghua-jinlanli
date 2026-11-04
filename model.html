@@ -328,7 +328,7 @@
       base:'#0a1210', vig:'rgba(30,48,42,.5)', plot:'#122019',
       river:['#0a1c28','#0d2836','#0b1f2b'], wave:'rgba(120,180,200,.10)',
       bank:'rgba(9,14,13,.9)', bankEdge:'rgba(120,160,130,.10)',
-      outer:'#0e1115', roadDash:'rgba(180,190,200,.16)',
+      road:'#101317', roadDash:'rgba(228,235,242,.6)',
       path:'#1b2629', pathDash:'rgba(210,200,180,.10)',
       belt:'rgba(22,44,34,.55)',
       treeLo:22, treeSpan:22, treeFill:s=>`rgba(${s},${s+22},${s+12},.55)`, treeHi:'rgba(120,170,130,.07)',
@@ -338,7 +338,7 @@
       base:'#7fa268', vig:'rgba(215,230,185,.5)', plot:'#90b178',
       river:['#69a0c3','#86b5d4','#75aacb'], wave:'rgba(255,255,255,.30)',
       bank:'rgba(96,116,94,.9)', bankEdge:'rgba(255,255,255,.28)',
-      outer:'#c9ced3', roadDash:'rgba(95,105,115,.4)',
+      road:'#3d4248', roadDash:'rgba(255,255,255,.95)',
       path:'#e3ded1', pathDash:'rgba(130,120,105,.28)',
       belt:'rgba(76,116,62,.5)',
       treeLo:64, treeSpan:30, treeFill:s=>`rgba(${s},${s+34},${s+18},.5)`, treeHi:'rgba(235,245,220,.15)',
@@ -374,12 +374,12 @@
     g.fillStyle = P.bank; g.fillRect(0, py(-143.4), W, py(-142)-py(-143.4));
     g.fillStyle = P.bankEdge; g.fillRect(0, py(-142.2), W, 2);
 
-    g.fillStyle = P.outer;
+    g.fillStyle = P.road;
     g.fillRect(px(100), 0, px(120)-px(100), H);
-    g.fillRect(0, py(100), W, py(120)-py(100));
+    g.fillRect(0, py(140), W, py(160)-py(140));
     g.strokeStyle = P.roadDash; g.lineWidth = 3; g.setLineDash([22,26]);
     g.beginPath(); g.moveTo(px(110),0); g.lineTo(px(110),H); g.stroke();
-    g.beginPath(); g.moveTo(0,py(110)); g.lineTo(W,py(110)); g.stroke();
+    g.beginPath(); g.moveTo(0,py(150)); g.lineTo(W,py(150)); g.stroke();
     g.setLineDash([]);
 
     g.strokeStyle = P.path; g.lineWidth = 24; g.lineCap='round'; g.lineJoin='round';
@@ -429,7 +429,7 @@
     g.textAlign='center'; g.fillStyle=P.lblRiver; g.font='500 30px "PingFang SC",sans-serif';
     g.fillText('电 厂 河', px(0), py(-161));
     g.save(); g.translate(px(110), py(10)); g.rotate(Math.PI/2); g.fillStyle=P.lblRoad; g.fillText('顾 扬 路',0,0); g.restore();
-    g.textAlign='left'; g.fillStyle=P.lblRoad; g.fillText('朱 家 坝 路', px(-60), py(112));
+    g.textAlign='left'; g.fillStyle=P.lblRoad; g.fillText('朱 家 坝 路', px(-60), py(152));
 
     const tex = new THREE.CanvasTexture(cv);
     tex.encoding = THREE.sRGBEncoding;
@@ -490,6 +490,7 @@
   scene.add(outer);
 
   /* 纯色贴图材质: Basic+map 渲染准确（Basic+color 在本管线会提亮） */
+  const themedMats = [];
   function flatMat(nightHex, dayHex, opts){
     const mk = hex=>{
       const cv = document.createElement('canvas'); cv.width = cv.height = 8;
@@ -500,6 +501,7 @@
     };
     const m = new THREE.MeshBasicMaterial(Object.assign({map: mk(nightHex)}, opts||{}));
     m.userData.nightTex = mk(nightHex); m.userData.dayTex = mk(dayHex);
+    themedMats.push(m);
     return m;
   }
 
@@ -564,22 +566,119 @@
   revetW.position.set(-435.5, 0.7, 0);
   canalGrp.add(revetW);
 
-  /* 滨河绿带: 同样在河口留缺口 */
+  /* 滨河绿带: 河口与南路交叉处留缺口 */
   const beltMat = flatMat(0x11231a, 0x7fae72);
-  [[-492, 616], [331, 938]].forEach(([cz, len])=>{
+  [[-492, 616], [0, 276], [481, 638]].forEach(([cz, len])=>{
     const belt = new THREE.Mesh(new THREE.PlaneGeometry(30, len), beltMat);
     belt.rotation.x = -Math.PI/2; belt.position.set(-246, 0.02, cz);
     canalGrp.add(belt);
   });
 
-  const bridgeMat = flatMat(0x3a4048, 0xa8a49a);
-  const bridge = new THREE.Mesh(new THREE.BoxGeometry(196, 3, 14), bridgeMat);
-  bridge.position.set(-350, 3.4, 120);
-  canalGrp.add(bridge);
-  [-6.2, 6.2].forEach(zoff=>{
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(196, 1.1, 0.7), bridgeMat);
-    rail.position.set(-350, 5.4, 120 + zoff);
+  /* ---------- 沥青路网: 东路南北贯通, 南路西接斜拉桥, 交叉口红绿灯 ---------- */
+  const RX = 110, RZ = 150;   // 顾扬路中心 x / 朱家坝路中心 z
+  function roadTexMat(len){
+    const draw = day=>{
+      const cv = document.createElement('canvas'); cv.width = 64; cv.height = 512;
+      const g = cv.getContext('2d');
+      g.fillStyle = day ? '#3d4248' : '#101317'; g.fillRect(0,0,64,512);
+      g.fillStyle = day ? 'rgba(255,255,255,.92)' : 'rgba(228,235,242,.6)';
+      g.fillRect(3,0,3,512); g.fillRect(58,0,3,512);       // 边线
+      for(let y=12;y<512;y+=64) g.fillRect(29,y,6,32);     // 中央虚线
+      const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+      t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, len/80);
+      return t;
+    };
+    const m = new THREE.MeshBasicMaterial({map: draw(false)});
+    m.userData.nightTex = draw(false); m.userData.dayTex = draw(true);
+    themedMats.push(m);
+    return m;
+  }
+  function roadGeo(len){
+    const geo = new THREE.PlaneGeometry(20, len);
+    geo.rotateX(-Math.PI/2);
+    return geo;
+  }
+  function roadGeoEW(len){
+    const geo = new THREE.PlaneGeometry(20, len);
+    geo.rotateX(-Math.PI/2); geo.rotateY(Math.PI/2);
+    return geo;
+  }
+  /* 东路: 南北延伸至远方, 跨电厂河处断开由桥承接 */
+  [[-492, 616], [331, 938]].forEach(([cz, len])=>{
+    const r = new THREE.Mesh(roadGeo(len), roadTexMat(len));
+    r.position.set(RX, 0.015, cz);
+    canalGrp.add(r);
+  });
+  { // 东路跨电厂河桥面
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(24, 1.1, 58), flatMat(0x101317, 0x3d4248));
+    deck.position.set(RX, 0.42, -161);
+    canalGrp.add(deck);
+  }
+  { // 南路: 斜拉桥东端 → 场地东缘
+    const len = 372;
+    const r = new THREE.Mesh(roadGeoEW(len), roadTexMat(len));
+    r.position.set(-66, 0.025, RZ);
+    canalGrp.add(r);
+  }
+  /* 红绿灯（南路×东路交叉口, 对角两台） */
+  const tlPoleMat = flatMat(0x17191d, 0x3a3f45);
+  const tlRed = flatMat(0xff4530, 0xff4530);
+  const tlYellow = flatMat(0x8a6d1c, 0xffb340);
+  const tlGreen = flatMat(0x1f7a30, 0x32d74b);
+  function makeTrafficLight(lit){
+    const g = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 7, 6), tlPoleMat);
+    pole.position.y = 3.5; g.add(pole);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 4.6, 5), tlPoleMat);
+    arm.rotation.z = Math.PI/2; arm.position.set(2.3, 6.9, 0); g.add(arm);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.9, 0.5), tlPoleMat);
+    head.position.set(4.4, 6.1, 0); g.add(head);
+    [['red', tlRed], ['yellow', tlYellow], ['green', tlGreen]].forEach(([k, mat], i)=>{
+      const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.21, 10), k === lit ? mat : tlPoleMat);
+      lamp.rotation.y = -Math.PI/2;
+      lamp.position.set(4.05, 6.75 - i*0.62, 0);
+      g.add(lamp);
+    });
+    return g;
+  }
+  const tl1 = makeTrafficLight('red'); tl1.position.set(RX-14, 0, RZ-13); canalGrp.add(tl1);
+  const tl2 = makeTrafficLight('green'); tl2.position.set(RX+14, 0, RZ+13); tl2.rotation.y = Math.PI; canalGrp.add(tl2);
+
+  /* 斜拉桥: 门式桥塔 + 扇形拉索 */
+  const bridgeDeckMat = flatMat(0x23282e, 0xb9bec5);
+  const bridgeTowerMat = flatMat(0x272c33, 0xc9ced4);
+  const bridgeCableMat = flatMat(0x39424c, 0xdde3e8);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(210, 2.6, 17), bridgeDeckMat);
+  deck.position.set(-350, 3.6, RZ);
+  canalGrp.add(deck);
+  [-8.2, 8.2].forEach(zoff=>{
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(210, 1.0, 0.6), bridgeDeckMat);
+    rail.position.set(-350, 5.3, RZ + zoff);
     canalGrp.add(rail);
+  });
+  [-7, 7].forEach(zoff=>{
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(1.8, 36, 1.8), bridgeTowerMat);
+    tower.position.set(-350, 18, RZ + zoff);
+    canalGrp.add(tower);
+  });
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.4, 17.5), bridgeTowerMat);
+  beam.position.set(-350, 35.5, RZ);
+  canalGrp.add(beam);
+  const cableGeo = new THREE.CylinderGeometry(0.13, 0.13, 1, 4);
+  function cable(x1, y1, z1, x2, y2, z2){
+    const a = new THREE.Vector3(x1, y1, z1), b = new THREE.Vector3(x2, y2, z2);
+    const d = b.clone().sub(a), len = d.length();
+    const m = new THREE.Mesh(cableGeo, bridgeCableMat);
+    m.scale.set(1, len, 1);
+    m.position.copy(a).add(b).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+    return m;
+  }
+  [-7, 7].forEach(zoff=>{
+    [30, 60, 90].forEach(dx=>{
+      canalGrp.add(cable(-350, 34.5, RZ + zoff, -350 - dx, 5, RZ + zoff));
+      canalGrp.add(cable(-350, 34.5, RZ + zoff, -350 + dx, 5, RZ + zoff));
+    });
   });
 
   const cwTrunk = new THREE.MeshStandardMaterial({color:0x4b3321, roughness:0.95});
@@ -600,6 +699,7 @@
   for(let i=0;i<32;i++){
     const z = -790 + i*50 + cwRnd()*16;
     if(z > -186 && z < -136) continue;  // 河口缺口
+    if(z > 132 && z < 168) continue;    // 南路交叉口
     canalGrp.add(cwTree(-258 + cwRnd()*14, z, 0.9 + cwRnd()*0.7));
   }
 
@@ -720,12 +820,7 @@
     canalGrp.add(b);
   });
 
-  /* 顾扬路行道树（小区东侧道路，x≈110 为道路中心线） */
-  for(let i=0;i<11;i++){
-    const z = -120 + i*20 + cwRnd()*8;
-    scene.add(makeTree(94 + cwRnd()*4, z, 0.8 + cwRnd()*0.5, cwRnd()));
-    if(i % 2 === 0) scene.add(makeTree(128 + cwRnd()*4, z + 10, 0.8 + cwRnd()*0.5, cwRnd()));
-  }
+  /* 顾扬路上不种树（用户要求） */
 
   /* 运河标注 */
   (function(){
@@ -1109,7 +1204,7 @@
     outer.material.map = day ? outerDayTex : outerNightTex; outer.material.needsUpdate = true;
     /* 纯色贴图材质: 切日夜贴图（Basic+map 渲染准确） */
     const setC = m => { m.map = day ? m.userData.dayTex : m.userData.nightTex; m.needsUpdate = true; };
-    [canalMat, riverMat, revetMat, beltMat, bridgeMat, hullMat, mastMat, sailMat, raftMat, raftPoleMat].forEach(setC);
+    themedMats.forEach(setC);
     facades.forEach(f=>{
       const k = day ? 'd' : 'n';
       if(!f[k]) f[k] = makeFacade(f.b, day);
@@ -1211,7 +1306,7 @@
   });
   animate();
   setTimeout(()=>document.getElementById('load').classList.add('done'), 420);
-  window.__MODEL = {D, openPanel, resetView, scene, canalGrp};
+  window.__MODEL = {D, openPanel, resetView, scene, canalGrp, renderer, camera, controls};
 })();
 </script>
 </body>
