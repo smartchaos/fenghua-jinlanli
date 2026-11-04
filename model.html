@@ -706,6 +706,7 @@
   canalGrp.add(deckBase);
   const deckTop = new THREE.Mesh(roadGeoEW(210), roadTexMat(210));
   deckTop.position.set(-350, 1.82, RZ);
+  deckTop.scale.z = 17/20;
   canalGrp.add(deckTop);
   [-8.2, 8.2].forEach(zoff=>{
     const rail = new THREE.Mesh(new THREE.BoxGeometry(210, 0.9, 0.6), bridgeTowerMat);
@@ -720,6 +721,7 @@
     const rampTop = new THREE.Mesh(roadGeoEW(44), roadTexMat(44));
     rampTop.position.set((x1 + x2)/2, 1.44, RZ);
     rampTop.rotation.z = rot;
+    rampTop.scale.z = 17/20;
     canalGrp.add(rampTop);
   });
   [-7, 7].forEach(zoff=>{

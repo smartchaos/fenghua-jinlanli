@@ -693,33 +693,45 @@
   const tl1 = makeTrafficLight('red'); tl1.position.set(RX-14, 0, RZ-13); canalGrp.add(tl1);
   const tl2 = makeTrafficLight('green'); tl2.position.set(RX+14, 0, RZ+13); tl2.rotation.y = Math.PI; canalGrp.add(tl2);
 
-  /* 斜拉桥: 门式桥塔 + 扇形拉索 */
-  const bridgeDeckMat = flatMat(0x23282e, 0xb9bec5);
+  /* 斜拉桥: 门式桥塔 + 扇形拉索; 桥面与南路同款沥青(白边线+中央虚线) */
   const bridgeTowerMat = flatMat(0x272c33, 0xc9ced4);
   const bridgeCableMat = flatMat(0x39424c, 0xdde3e8);
+  const bridgeAsphalt = flatMat(0x101317, 0x3d4248);   // 与南路同色系沥青
   /* 桥面压低接近路面(底 0.2 / 顶 1.8), 两端引道缓坡衔接, 舟可穿行 */
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(210, 1.6, 17), bridgeDeckMat);
-  deck.position.set(-350, 1.0, RZ);
-  canalGrp.add(deck);
+  const deckBase = new THREE.Mesh(new THREE.BoxGeometry(210, 1.6, 17), bridgeAsphalt);
+  deckBase.position.set(-350, 1.0, RZ);
+  canalGrp.add(deckBase);
+  const deckTop = new THREE.Mesh(roadGeoEW(210), roadTexMat(210));
+  deckTop.position.set(-350, 1.82, RZ);
+  deckTop.scale.z = 17/20;
+  canalGrp.add(deckTop);
   [-8.2, 8.2].forEach(zoff=>{
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(210, 0.9, 0.6), bridgeDeckMat);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(210, 0.9, 0.6), bridgeTowerMat);
     rail.position.set(-350, 2.3, RZ + zoff);
     canalGrp.add(rail);
   });
   [[-245, -205, -0.0375], [-455, -495, 0.0375]].forEach(([x1, x2, rot])=>{
-    const ramp = new THREE.Mesh(new THREE.BoxGeometry(44, 0.8, 17), bridgeDeckMat);
-    ramp.position.set((x1 + x2)/2, 1.02, RZ);
-    ramp.rotation.z = rot;
-    canalGrp.add(ramp);
+    const rampBase = new THREE.Mesh(new THREE.BoxGeometry(44, 0.8, 17), bridgeAsphalt);
+    rampBase.position.set((x1 + x2)/2, 1.02, RZ);
+    rampBase.rotation.z = rot;
+    canalGrp.add(rampBase);
+    const rampTop = new THREE.Mesh(roadGeoEW(44), roadTexMat(44));
+    rampTop.position.set((x1 + x2)/2, 1.44, RZ);
+    rampTop.rotation.z = rot;
+    rampTop.scale.z = 17/20;
+    canalGrp.add(rampTop);
   });
   [-7, 7].forEach(zoff=>{
-    const tower = new THREE.Mesh(new THREE.BoxGeometry(1.8, 36, 1.8), bridgeTowerMat);
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(1.5, 36, 1.5), bridgeTowerMat);
     tower.position.set(-350, 18, RZ + zoff);
     canalGrp.add(tower);
   });
   const beam = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.4, 17.5), bridgeTowerMat);
   beam.position.set(-350, 35.5, RZ);
   canalGrp.add(beam);
+  const beamLow = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.6, 15.5), bridgeTowerMat);
+  beamLow.position.set(-350, 9.5, RZ);
+  canalGrp.add(beamLow);
   const cableGeo = new THREE.CylinderGeometry(0.13, 0.13, 1, 4);
   function cable(x1, y1, z1, x2, y2, z2){
     const a = new THREE.Vector3(x1, y1, z1), b = new THREE.Vector3(x2, y2, z2);
@@ -731,7 +743,7 @@
     return m;
   }
   [-7, 7].forEach(zoff=>{
-    [30, 60, 90].forEach(dx=>{
+    [24, 48, 72, 96].forEach(dx=>{
       canalGrp.add(cable(-350, 34.5, RZ + zoff, -350 - dx, 2.0, RZ + zoff));
       canalGrp.add(cable(-350, 34.5, RZ + zoff, -350 + dx, 2.0, RZ + zoff));
     });
