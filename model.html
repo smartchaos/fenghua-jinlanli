@@ -489,15 +489,28 @@
   outer.position.y = -0.35;
   scene.add(outer);
 
+  /* 纯色贴图材质: Basic+map 渲染准确（Basic+color 在本管线会提亮） */
+  function flatMat(nightHex, dayHex, opts){
+    const mk = hex=>{
+      const cv = document.createElement('canvas'); cv.width = cv.height = 8;
+      const g = cv.getContext('2d');
+      g.fillStyle = '#'+hex.toString(16).padStart(6,'0'); g.fillRect(0,0,8,8);
+      const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+      return t;
+    };
+    const m = new THREE.MeshBasicMaterial(Object.assign({map: mk(nightHex)}, opts||{}));
+    m.userData.nightTex = mk(nightHex); m.userData.dayTex = mk(dayHex);
+    return m;
+  }
+
+  const riverMat = flatMat(0x0a2e44, 0x6aa3c8);
   const river = new THREE.Mesh(
-    new THREE.PlaneGeometry(SITE_W, 40),
-    new THREE.MeshBasicMaterial({color:0x0a2e44, transparent:true, opacity:0.86})
+    new THREE.PlaneGeometry(970, 40),
+    riverMat
   );
   river.rotation.x = -Math.PI/2;
-  river.position.set(0, 0.06, -161);
+  river.position.set(115, 0.06, -161);
   scene.add(river);
-  regColor(river.material.color, 0x07202f, 0x4a8ab0);
-  regNum(river.material, 'opacity', 0.86, 0.92);
 
   function makeTree(x,z,s,kind){
     const group = new THREE.Group();
@@ -535,29 +548,31 @@
 
   /* ---------- 京杭大运河（西侧中远景）+ 驳岸 + 滨河绿带 ---------- */
   const canalGrp = new THREE.Group(); scene.add(canalGrp);
-  const canalMat = new THREE.MeshBasicMaterial({color:0x07202f, transparent:true, opacity:0.9});
-  const canal = new THREE.Mesh(new THREE.PlaneGeometry(170, 1080), canalMat);
+  const canalMat = flatMat(0x0a2e44, 0x6aa3c8);
+  const canal = new THREE.Mesh(new THREE.PlaneGeometry(170, 1600), canalMat);
   canal.rotation.x = -Math.PI/2; canal.position.set(-350, 0.03, 0);
   canalGrp.add(canal);
-  regColor(canalMat.color, 0x07202f, 0x4a8ab0);
-  regNum(canalMat, 'opacity', 0.9, 0.94);
 
-  const revetMat = new THREE.MeshBasicMaterial({color:0x1c2129});
-  regColor(revetMat.color, 0x1c2129, 0x8f8d84);
-  [-264.5, -435.5].forEach(x=>{
-    const b = new THREE.Mesh(new THREE.BoxGeometry(7, 2.2, 1080), revetMat);
-    b.position.set(x, 0.7, 0);
+  /* 驳岸: 东岸在电厂河口留缺口 (-184..-138), 西岸贯通 */
+  const revetMat = flatMat(0x232a33, 0x8f8d84);
+  [[-492, 616], [308, 942]].forEach(([cz, len])=>{
+    const b = new THREE.Mesh(new THREE.BoxGeometry(7, 2.2, len), revetMat);
+    b.position.set(-264.5, 0.7, cz);
     canalGrp.add(b);
   });
+  const revetW = new THREE.Mesh(new THREE.BoxGeometry(7, 2.2, 1600), revetMat);
+  revetW.position.set(-435.5, 0.7, 0);
+  canalGrp.add(revetW);
 
-  const beltMat = new THREE.MeshBasicMaterial({color:0x0e2016});
-  regColor(beltMat.color, 0x0e2016, 0x7fae72);
-  const belt = new THREE.Mesh(new THREE.PlaneGeometry(30, 1080), beltMat);
-  belt.rotation.x = -Math.PI/2; belt.position.set(-246, 0.02, 0);
-  canalGrp.add(belt);
+  /* 滨河绿带: 同样在河口留缺口 */
+  const beltMat = flatMat(0x11231a, 0x7fae72);
+  [[-492, 616], [308, 942]].forEach(([cz, len])=>{
+    const belt = new THREE.Mesh(new THREE.PlaneGeometry(30, len), beltMat);
+    belt.rotation.x = -Math.PI/2; belt.position.set(-246, 0.02, cz);
+    canalGrp.add(belt);
+  });
 
-  const bridgeMat = new THREE.MeshBasicMaterial({color:0x2a2f36});
-  regColor(bridgeMat.color, 0x2a2f36, 0xa8a49a);
+  const bridgeMat = flatMat(0x3a4048, 0xa8a49a);
   const bridge = new THREE.Mesh(new THREE.BoxGeometry(196, 3, 14), bridgeMat);
   bridge.position.set(-350, 3.4, 120);
   canalGrp.add(bridge);
@@ -582,8 +597,10 @@
     return g;
   }
   const cwRnd = mulberry32(20261106);
-  for(let i=0;i<26;i++){
-    canalGrp.add(cwTree(-258 + cwRnd()*14, -520 + i*40 + cwRnd()*16, 0.9 + cwRnd()*0.7));
+  for(let i=0;i<32;i++){
+    const z = -790 + i*50 + cwRnd()*16;
+    if(z > -186 && z < -136) continue;  // 河口缺口
+    canalGrp.add(cwTree(-258 + cwRnd()*14, z, 0.9 + cwRnd()*0.7));
   }
 
   /* ---------- 旷野之息式外围: 丘陵 / 远山 / 树丛 / 岩石 (低饱和, 不抢焦点) ---------- */
@@ -660,6 +677,48 @@
     m.position.set(x, s*0.4, z); m.scale.set(s, s*0.7, s); m.rotation.y = bwRnd()*3;
     canalGrp.add(m);
   }
+
+  /* ---------- 白帆与竹排 ---------- */
+  const hullMat = flatMat(0x241b14, 0x6b4f33);
+  const mastMat = flatMat(0x1e1712, 0x54402c);
+  const sailMat = flatMat(0x9fadbe, 0xffffff, {side:THREE.DoubleSide});
+  const raftMat = flatMat(0x4a3d28, 0xb89b62);
+  const raftPoleMat = flatMat(0x554730, 0xc9a86b);
+  const sailShape = new THREE.Shape();
+  sailShape.moveTo(0,0); sailShape.lineTo(0,3.9); sailShape.lineTo(2.7,0.25); sailShape.closePath();
+  const sailGeo = new THREE.ShapeGeometry(sailShape);
+  function makeSailBoat(){
+    const g = new THREE.Group();
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.9, 1.7), hullMat);
+    hull.position.y = 0.45; g.add(hull);
+    const bow = new THREE.Mesh(new THREE.ConeGeometry(0.85, 1.6, 4), hullMat);
+    bow.rotation.set(0, Math.PI/4, -Math.PI/2);
+    bow.position.set(3.05, 0.45, 0); bow.scale.set(1, 1, 0.55); g.add(bow);
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 5.4, 5), mastMat);
+    mast.position.y = 3.0; g.add(mast);
+    const sail = new THREE.Mesh(sailGeo, sailMat);
+    sail.rotation.y = Math.PI/2; sail.position.set(0.12, 1.1, 0); g.add(sail);
+    return g;
+  }
+  function makeRaft(){
+    const g = new THREE.Group();
+    for(let i=0;i<5;i++){
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 6.4, 5), i%2 ? raftMat : raftPoleMat);
+      pole.rotation.z = Math.PI/2;
+      pole.position.set(0, 0.18, -0.88 + i*0.44);
+      g.add(pole);
+    }
+    const punting = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.6, 4), mastMat);
+    punting.position.set(2.4, 1.1, 0.6); punting.rotation.z = 0.5; g.add(punting);
+    return g;
+  }
+  [[-338, 55, 0.35, 'sail'],[-372, -132, -0.2, 'sail'],[-330, 262, 0.15, 'sail'],
+   [-358, 168, 0.5, 'raft'],[-344, -258, -0.4, 'raft'],[-186, -161, 0.9, 'sail'],[-252, -161, -0.7, 'raft']
+  ].forEach(([x,z,rot,kind])=>{
+    const b = kind === 'sail' ? makeSailBoat() : makeRaft();
+    b.position.set(x, 0.32, z); b.rotation.y = rot;
+    canalGrp.add(b);
+  });
 
   /* 顾扬路行道树（小区东侧道路，x≈110 为道路中心线） */
   for(let i=0;i<11;i++){
@@ -1048,6 +1107,9 @@
     if(instant) themeT = themeTarget;
     siteMat.map = day ? siteDay.tex : siteNight.tex; siteMat.needsUpdate = true;
     outer.material.map = day ? outerDayTex : outerNightTex; outer.material.needsUpdate = true;
+    /* 纯色贴图材质: 切日夜贴图（Basic+map 渲染准确） */
+    const setC = m => { m.map = day ? m.userData.dayTex : m.userData.nightTex; m.needsUpdate = true; };
+    [canalMat, riverMat, revetMat, beltMat, bridgeMat, hullMat, mastMat, sailMat, raftMat, raftPoleMat].forEach(setC);
     facades.forEach(f=>{
       const k = day ? 'd' : 'n';
       if(!f[k]) f[k] = makeFacade(f.b, day);
