@@ -3,24 +3,28 @@ import { RX, RZ } from './constants.js';
 import { flatMat, themedMats } from './theme.js';
 
 /* ---------- 京杭大运河（西侧中远景）+ 电厂河 + 路网 + 双桥 + 红绿灯 ---------- */
-export function createCanal(scene){
+export function createCanal(scene, renderer){
   const canalGrp = new THREE.Group(); scene.add(canalGrp);
+  const maxAniso = renderer ? renderer.capabilities.getMaxAnisotropy() : 1;
 
   const canalMat = flatMat(0x0a2e44, 0x6aa3c8);
   const canal = new THREE.Mesh(new THREE.PlaneGeometry(170, 1600), canalMat);
   canal.rotation.x = -Math.PI/2; canal.position.set(-350, 0.03, 0);
   canalGrp.add(canal);
 
-  /* 驳岸: 东岸在电厂河口留缺口 (-184..-138), 西岸贯通 */
+  /* 驳岸: 东岸在电厂河口 (-184..-138) 与南路桥位 (138..162) 留缺口, 西岸只留桥位缺口。
+   * 不留缺口时驳岸顶 y1.8 与桥面顶 y1.8 共面, 在桥位处 z-fighting 闪烁 */
   const revetMat = flatMat(0x232a33, 0x8f8d84);
-  [[-492, 616], [331, 938]].forEach(([cz, len])=>{
+  [[-492, 616], [0, 276], [481, 638]].forEach(([cz, len])=>{
     const b = new THREE.Mesh(new THREE.BoxGeometry(7, 2.2, len), revetMat);
     b.position.set(-264.5, 0.7, cz);
     canalGrp.add(b);
   });
-  const revetW = new THREE.Mesh(new THREE.BoxGeometry(7, 2.2, 1600), revetMat);
-  revetW.position.set(-435.5, 0.7, 0);
-  canalGrp.add(revetW);
+  [[-331, 938], [481, 638]].forEach(([cz, len])=>{
+    const b = new THREE.Mesh(new THREE.BoxGeometry(7, 2.2, len), revetMat);
+    b.position.set(-435.5, 0.7, cz);
+    canalGrp.add(b);
+  });
 
   /* 滨河绿带: 河口与南路交叉处留缺口 */
   const beltMat = flatMat(0x11231a, 0x7fae72);
@@ -40,6 +44,7 @@ export function createCanal(scene){
       g.fillRect(3, 0, 3, 512); g.fillRect(58, 0, 3, 512);       // 边线
       for(let y = 12; y < 512; y += 64) g.fillRect(30, y, 3, 32); // 中央虚线
       const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+      t.anisotropy = maxAniso;
       t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, len/80);
       return t;
     };
@@ -56,6 +61,7 @@ export function createCanal(scene){
       g.fillRect(0, 3, 512, 3); g.fillRect(0, 58, 512, 3);       // 边线
       for(let x = 12; x < 512; x += 64) g.fillRect(x, 30, 32, 3); // 中央虚线
       const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+      t.anisotropy = maxAniso;
       t.wrapS = THREE.RepeatWrapping; t.repeat.set(len/80, 1);
       return t;
     };
@@ -114,6 +120,7 @@ export function createCanal(scene){
       g.fillRect(61, 0, 6, 128);   // 南北向实线, 宽 0.95m 与路段虚线同宽
       g.fillRect(115, 0, 6, 128);  // 东侧边线, 对齐路段纹理 u=58..61/64 (x 8.1..9.1); 西侧为南路支路口开口, 保持断开
       const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+      t.anisotropy = maxAniso;
       return t;
     };
     const topMat = new THREE.MeshBasicMaterial({ map: draw(false) });

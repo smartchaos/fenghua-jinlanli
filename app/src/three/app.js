@@ -81,7 +81,7 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
 
   /* 场景内容 */
   const ground = createGround(scene, B, renderer);
-  const { canalGrp } = createCanal(scene);
+  const { canalGrp } = createCanal(scene, renderer);
   createVegetation(scene, ground.treeSpots);
   createCanalTrees(canalGrp);
   createWilds(canalGrp);
@@ -89,10 +89,12 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   createCanalLabel(canalGrp);
   createWaterPlay(scene);
   const buildings = createBuildings(scene, B, roomsByB);
-  const interaction = createInteraction(canvas, scene, camera, controls, buildings.pickMeshes, { onSelect, onHover });
+  const interaction = createInteraction(canvas, scene, camera, controls, buildings.pickMeshes,
+    { onSelect, onHover, onChange: ()=>{ needsRender = true; } });
 
   /* ---------- day / night 主题 ---------- */
   let themeT = 0, themeTarget = 0;
+  let needsRender = true;   // 按需渲染: 仅相机变动/动画/主题过渡时重绘, 闲置时零 GPU 占用
   function applyTheme(day, instant){
     try{ localStorage.setItem(THEME_KEY, day ? 'day' : 'night'); }catch(_){}
     themeTarget = day ? 1 : 0;
@@ -100,6 +102,7 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
     ground.setGroundMaps(day);
     setThemedMaps(day);
     buildings.setFacadeMaps(day);
+    needsRender = true;
   }
   applyTheme(initialDay, true);
 
@@ -126,13 +129,15 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   }
   function easeInOut(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
 
-  /* ---------- 主循环 ---------- */
+  /* ---------- 主循环（按需渲染） ---------- */
+  controls.addEventListener('change', ()=>{ needsRender = true; });
+  renderer.shadowMap.autoUpdate = false;   // 场景静态: 阴影贴图只在生长动画期重算
   let raf = 0;
   function animate(){
     raf = requestAnimationFrame(animate);
     const now = performance.now();
     updateIntro(now);
-    interaction.update(now);
+    const animating = interaction.update(now);
     themeT += (themeTarget - themeT) * 0.065;
     if(Math.abs(themeTarget - themeT) < 0.0015) themeT = themeTarget;
     applyFaders(themeT);
@@ -141,7 +146,11 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
     skyNight.position.copy(camera.position);
     skyDay.position.copy(camera.position);
     controls.update();
-    renderer.render(scene, camera);
+    if(needsRender || animating || !introDone || themeT !== themeTarget){
+      if(!introDone) renderer.shadowMap.needsUpdate = true;
+      renderer.render(scene, camera);
+      needsRender = false;
+    }
   }
   animate();
 
@@ -149,13 +158,14 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
     camera.aspect = innerWidth/innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
+    needsRender = true;
   };
   addEventListener('resize', onResize);
 
   /* ---------- 对外命令式 API（同步回传 React 状态） ---------- */
-  function openPanelById(b){ interaction.openPanel(b); onSelect(b || null); }
-  function resetView(){ interaction.flyHome(HOME_POS, HOME_TARGET); onSelect(null); }
-  function closePanel(){ interaction.closePanel(); onSelect(null); }
+  function openPanelById(b){ interaction.openPanel(b); onSelect(b || null); needsRender = true; }
+  function resetView(){ interaction.flyHome(HOME_POS, HOME_TARGET); onSelect(null); needsRender = true; }
+  function closePanel(){ interaction.closePanel(); onSelect(null); needsRender = true; }
   function setTour(on){ controls.autoRotate = on; }
   function dispose(){
     cancelAnimationFrame(raf);

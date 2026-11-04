@@ -54,10 +54,12 @@ export function createInteraction(canvas, scene, camera, controls, pickMeshes, c
     ring2.position.set(b.x, 0.84, b.z);
     ring.visible = true; ring2.visible = true;
     focus(b);
+    callbacks.onChange && callbacks.onChange();
   }
   function closePanel(){
     ring.visible = false; ring2.visible = false;
     selected = null;
+    callbacks.onChange && callbacks.onChange();
   }
   function resetCamAnim(){ camAnim = null; }
   function flyHome(homePos, homeTarget){
@@ -91,9 +93,11 @@ export function createInteraction(canvas, scene, camera, controls, pickMeshes, c
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerleave', onPointerLeave);
 
-  /* 每帧: 聚焦插值 + 选中环呼吸 */
+  /* 每帧: 聚焦插值 + 选中环呼吸; 返回是否需要持续渲染 */
   function update(now){
+    let active = false;
     if(camAnim){
+      active = true;
       camAnim.t += 0.016;
       const k = ease(Math.min(1, camAnim.t / camAnim.dur));
       camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, k);
@@ -101,10 +105,12 @@ export function createInteraction(canvas, scene, camera, controls, pickMeshes, c
       if(camAnim.t >= camAnim.dur) camAnim = null;
     }
     if(selected){
+      active = true;
       const t = now * 0.0016;
       ring.material.opacity = 0.38 + Math.sin(t)*0.16;
       ring2.material.opacity = 0.08 + Math.sin(t+1)*0.04;
     }
+    return active;
   }
 
   function dispose(){
