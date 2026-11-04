@@ -101,6 +101,82 @@ function makeFacade(b, day, roomsByB){
   return { map, glow };
 }
 
+/* 山墙(±x 端头)纹理: 每层一条通宽边窗带; 亮灯=该端头列有房间已入群, 与相邻南北立面严格一致。
+ * endCol: 该端头贴邻的立面列号(+x 端=col 0, -x 端=col cols-1, 由 BoxGeometry UV 方向推得) */
+function makeSide(b, day, roomsByB, endCol){
+  const rows = b.floors;
+  const cols = b.type === '洋房' ? 4 : 3;
+  const W = 256;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = 1024;
+  const em = document.createElement('canvas'); em.width = W; em.height = 1024;
+  const g = cv.getContext('2d'); const e = em.getContext('2d');
+  const M = 20;
+  const bw = W - M*2, ch = (1024 - M*2) / rows;
+  const tint = (day ? ['#cdc3ae','#c8bda6','#c3b79e','#d0c5b0'] : ['#d2cab9','#cec5b3','#c9c0ae','#d3cabb'])[b.id%4];
+  const base = g.createLinearGradient(0, 0, 0, 1024);
+  base.addColorStop(0, tint); base.addColorStop(.6, day ? '#b5a78c' : '#bcb2a1'); base.addColorStop(1, day ? '#a2947a' : '#aaa191');
+  g.fillStyle = base; g.fillRect(0, 0, W, 1024);
+  /* 端头竖向分缝 */
+  g.fillStyle = day ? 'rgba(90,78,60,.20)' : 'rgba(70,64,54,.18)';
+  g.fillRect(W/2-1, M, 2, 1024-M*2);
+  e.fillStyle = '#000'; e.fillRect(0, 0, W, 1024);
+
+  const floorRooms = roomsByB[b.id] || [];
+  for(let f = 1; f <= rows; f++){
+    const yTop = 1024 - M - f*ch;
+    g.fillStyle = day ? 'rgba(88,76,58,.38)' : 'rgba(100,92,80,.28)';
+    g.fillRect(M, yTop+ch-3, bw, 3);
+    if(b.type !== '洋房' && f < b.residentFrom){
+      /* 架空层: 通宽玻璃带 */
+      const lg = g.createLinearGradient(0, yTop, 0, yTop+ch);
+      if(day){ lg.addColorStop(0,'#6d7478'); lg.addColorStop(.55,'#8b9296'); lg.addColorStop(1,'#50585e'); }
+      else { lg.addColorStop(0,'#28292a'); lg.addColorStop(.55,'#38322a'); lg.addColorStop(1,'#16191d'); }
+      g.fillStyle = lg; g.fillRect(M+4, yTop+ch*0.14, bw-8, ch*0.72);
+      if(!day){
+        const eg = e.createLinearGradient(0, yTop, 0, yTop+ch);
+        eg.addColorStop(0,'rgba(255,190,120,.08)'); eg.addColorStop(.6,'rgba(255,180,100,.4)'); eg.addColorStop(1,'rgba(255,160,80,.1)');
+        e.fillStyle = eg; e.fillRect(M+4, yTop+ch*0.14, bw-8, ch*0.72);
+      }
+      continue;
+    }
+    /* 该端头列本层房间: 无房间则留空墙(与正立面一致) */
+    const edge = floorRooms.filter(r=>r.f === f && r.col === endCol);
+    if(!edge.length) continue;
+    const lit = edge.some(r=>r.joined > 0);
+    /* 通宽边窗带 */
+    const x = M+7, ww = bw-14, y = yTop+ch*0.2, hh = ch*0.48;
+    g.fillStyle = day ? 'rgba(72,62,46,.5)' : 'rgba(70,64,55,.42)';
+    g.fillRect(x-4, y-4, ww+8, hh+8);
+    if(lit){
+      const wg = g.createLinearGradient(0, y, 0, y+hh);
+      if(day){ wg.addColorStop(0,'#f8c766'); wg.addColorStop(.5,'#f0ab45'); wg.addColorStop(1,'#dd912e'); }
+      else { wg.addColorStop(0,'#ffe3b4'); wg.addColorStop(.5,'#ffc477'); wg.addColorStop(1,'#e89b4f'); }
+      g.fillStyle = wg; g.fillRect(x, y, ww, hh);
+      g.fillStyle = day ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.28)'; g.fillRect(x, y, ww, hh*0.16);
+    }else{
+      g.fillStyle = day ? '#7b9cbd' : '#1b2532'; g.fillRect(x, y, ww, hh);
+      g.fillStyle = day ? 'rgba(255,255,255,.4)' : 'rgba(120,160,210,.07)'; g.fillRect(x, y, ww, hh*0.2);
+    }
+    /* 竖梃 */
+    g.fillStyle = day ? 'rgba(48,42,32,.6)' : 'rgba(60,55,48,.5)';
+    for(let k = 1; k < 4; k++) g.fillRect(x+ww*k/4-1.5, y, 3, hh);
+    g.fillStyle = day ? 'rgba(66,56,42,.45)' : 'rgba(80,72,62,.30)'; g.fillRect(x-2, y+hh+4, ww+4, 2);
+    if(lit && !day){
+      const grad = e.createRadialGradient(x+ww/2, y+hh/2, 2, x+ww/2, y+hh/2, ww*0.55);
+      grad.addColorStop(0,'rgba(255,220,170,1)');
+      grad.addColorStop(.5,'rgba(255,178,96,.85)');
+      grad.addColorStop(1,'rgba(255,150,60,0)');
+      e.fillStyle = grad;
+      e.fillRect(x-6, y-6, ww+12, hh+12);
+    }
+  }
+  const map = new THREE.CanvasTexture(cv);
+  map.encoding = THREE.sRGBEncoding; map.anisotropy = 8;
+  const glow = new THREE.CanvasTexture(em);
+  glow.encoding = THREE.sRGBEncoding; glow.anisotropy = 8;
+  return { map, glow };
+}
+
 /* 12 栋楼: 基座/立面盒/屋顶/女儿墙/核心筒/门厅雨棚; 初始压扁待 intro 生长 */
 export function createBuildings(scene, buildings, roomsByB){
   const groups = [];
@@ -128,15 +204,33 @@ export function createBuildings(scene, buildings, roomsByB){
       map: null, emissiveMap: null, emissive: 0xffffff, emissiveIntensity: 0.95,
       roughness: 0.78, metalness: 0.04
     });
-    const entry = { mat: facadeMat, b, n: makeFacade(b, false, roomsByB), d: null };
+    const entry = { mat: facadeMat, b, n: makeFacade(b, false, roomsByB), d: null, mk: (bb, day)=>makeFacade(bb, day, roomsByB) };
     facades.push(entry);
     facadeMat.map = entry.n.map;
     facadeMat.emissiveMap = entry.n.glow;
-    const endMat = new THREE.MeshStandardMaterial({ color: 0xc4bbab, roughness: 0.88, metalness: 0.03 });
-    regColor(endMat.color, 0xc4bbab, 0xa3967a);
+    const sideCols = b.type === '洋房' ? 4 : 3;
+    const mkSideMat = endCol => {
+      const m = new THREE.MeshStandardMaterial({
+        map: null, emissiveMap: null, emissive: 0xffffff, emissiveIntensity: 0.8,
+        roughness: 0.82, metalness: 0.04
+      });
+      const en = { mat: m, b, n: makeSide(b, false, roomsByB, endCol), d: null, mk: (bb, day)=>makeSide(bb, day, roomsByB, endCol) };
+      facades.push(en);
+      m.map = en.n.map;
+      m.emissiveMap = en.n.glow;
+      return m;
+    };
+    /* px 面(+x 端)贴邻立面 col 0, nx 面(-x 端)贴邻立面 col cols-1 */
+    const sideMatPx = mkSideMat(0);
+    const sideMatNx = mkSideMat(sideCols-1);
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x565b62, roughness: 0.9, metalness: 0.08 });
     regColor(roofMat.color, 0x565b62, 0x474e59);
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [endMat, endMat, roofMat, roofMat, facadeMat, facadeMat]);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [sideMatPx, sideMatNx, roofMat, roofMat, facadeMat, facadeMat]);
+    /* nz(北)面与 pz 共用立面贴图, 但 BoxGeometry nz 面 u 轴反向, 北立面房间列位被镜像;
+     * 翻转 nz 面(uv 属性第 20-23 顶点, 对应 materialIndex 5)的 u, 使 col 0 在两个立面都恒在 +x 端, 与山墙亮灯一致 */
+    const uvAttr = body.geometry.attributes.uv;
+    for(let i = 20; i < 24; i++) uvAttr.setX(i, 1 - uvAttr.getX(i));
+    uvAttr.needsUpdate = true;
     body.position.y = 1.4 + h/2;
     body.castShadow = true; body.receiveShadow = true;
     body.userData.b = b;
@@ -213,7 +307,7 @@ export function createBuildings(scene, buildings, roomsByB){
   function setFacadeMaps(day){
     facades.forEach(f=>{
       const k = day ? 'd' : 'n';
-      if(!f[k]) f[k] = makeFacade(f.b, day, roomsByB);
+      if(!f[k]) f[k] = f.mk(f.b, day);
       f.mat.map = f[k].map;
       f.mat.emissiveMap = f[k].glow;
       f.mat.needsUpdate = true;

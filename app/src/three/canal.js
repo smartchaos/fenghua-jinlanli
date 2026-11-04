@@ -105,15 +105,23 @@ export function createCanal(scene){
     r.position.set(-66, 0.025, RZ);
     canalGrp.add(r);
   }
-  { // 交叉口无缝补丁: 同色系纯沥青薄盒, 顶面即补丁面, 无叠层间隙
-    const patch = new THREE.Mesh(new THREE.BoxGeometry(20.4, 0.12, 20.4), flatMat(0x101317, 0x3d4248));
+  { // 交叉口无缝补丁: 顶面贴图画入东路(主路)贯穿中线(直行优先), 南路(支路)止于路口西缘
+    const draw = day=>{
+      const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+      const g = cv.getContext('2d');
+      g.fillStyle = day ? '#3d4248' : '#101317'; g.fillRect(0, 0, 128, 128);
+      g.fillStyle = day ? 'rgba(255,255,255,.92)' : 'rgba(228,235,242,.6)';
+      g.fillRect(61, 0, 6, 128);   // 南北向实线, 宽 0.95m 与路段虚线同宽
+      const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+      return t;
+    };
+    const topMat = new THREE.MeshBasicMaterial({ map: draw(false) });
+    topMat.userData.nightTex = draw(false); topMat.userData.dayTex = draw(true);
+    const asphalt = flatMat(0x101317, 0x3d4248);
+    const patch = new THREE.Mesh(new THREE.BoxGeometry(20.4, 0.12, 20.4),
+      [asphalt, asphalt, regRoadTex(topMat), asphalt, asphalt, asphalt]);
     patch.position.set(RX, 0.035 - 0.06, RZ);
     canalGrp.add(patch);
-    // 直行优先: 东路(主路)中线实线贯穿交叉口, 南路(支路)中线止于路口西缘
-    const through = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 20.4), flatMat(0x8f98a4, 0xffffff));
-    through.rotation.x = -Math.PI/2;
-    through.position.set(RX, 0.036, RZ);
-    canalGrp.add(through);
   }
   /* 红绿灯（南路×东路交叉口, 对角两台） */
   const tlPoleMat = flatMat(0x17191d, 0x3a3f45);
