@@ -607,16 +607,67 @@
     r.position.set(RX, 0.015, cz);
     canalGrp.add(r);
   });
-  { // 东路跨电厂河桥面
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(24, 1.1, 54), flatMat(0x101317, 0x3d4248));
-    deck.position.set(RX, 0.42, -219);
-    canalGrp.add(deck);
+  { // 东路跨河拱桥: 缓坡引道衔接 + 平直沥青桥面 + 椭圆拱肋立柱
+    const archConc = flatMat(0x272c33, 0xc9ced4);
+    const archAsphalt = flatMat(0x101317, 0x3d4248);
+    const CZR = -219, HALF = 23, DECKY = 4.5, RAMP = 55;
+    const slopeA = Math.atan((DECKY - 0.1) / RAMP);
+    const zN = CZR - HALF, zS = CZR + HALF;
+    [[zN - RAMP, zN], [zS, zS + RAMP]].forEach(([z1, z2])=>{
+      const len = z2 - z1, cz = (z1 + z2) / 2;
+      const LL = Math.hypot(len, DECKY - 0.1) + 1;
+      const rot = z1 < CZR ? -slopeA : slopeA;
+      const base = new THREE.Mesh(new THREE.BoxGeometry(22, 0.9, LL), archAsphalt);
+      base.position.set(RX, (0.1 + DECKY) / 2 - 0.45, cz);
+      base.rotation.x = rot;
+      canalGrp.add(base);
+      [-10.2, 10.2].forEach(xoff=>{
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, LL), archConc);
+        rail.position.set(RX + xoff, (0.1 + DECKY) / 2 + 0.45, cz);
+        rail.rotation.x = rot;
+        canalGrp.add(rail);
+      });
+    });
+    const top = new THREE.Mesh(new THREE.BoxGeometry(22, 0.9, HALF * 2), archAsphalt);
+    top.position.set(RX, DECKY - 0.45, CZR);
+    canalGrp.add(top);
+    [-10.2, 10.2].forEach(xoff=>{
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, HALF * 2), archConc);
+      rail.position.set(RX + xoff, DECKY + 0.55, CZR);
+      canalGrp.add(rail);
+    });
+    const RIB = 9;
+    for(let i = 0; i < RIB; i++){
+      const t0 = i / RIB, t1 = (i + 1) / RIB;
+      const za = zN + t0 * HALF * 2, zb = zN + t1 * HALF * 2;
+      const ya = 0.2 + 3.4 * Math.sin(Math.PI * t0), yb = 0.2 + 3.4 * Math.sin(Math.PI * t1);
+      const len = Math.hypot(zb - za, yb - ya);
+      const ang = -Math.atan2(yb - ya, zb - za);
+      [-7, 7].forEach(xoff=>{
+        const rib = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, len + 0.3), archConc);
+        rib.position.set(RX + xoff, (ya + yb) / 2, (za + zb) / 2);
+        rib.rotation.x = ang;
+        canalGrp.add(rib);
+      });
+      if(i > 0 && i % 2 === 0){
+        [-7, 7].forEach(xoff=>{
+          const post = new THREE.Mesh(new THREE.BoxGeometry(0.45, DECKY - ya, 0.45), archConc);
+          post.position.set(RX + xoff, (DECKY + ya) / 2, za);
+          canalGrp.add(post);
+        });
+      }
+    }
   }
-  { // 南路: 斜拉桥东端 → 场地东缘
-    const len = 342;
+  { // 南路: 斜拉桥东端 → 穿过东路, 交叉口由无缝补丁收口
+    const len = 343;
     const r = new THREE.Mesh(roadGeoEW(len), roadTexMat(len));
-    r.position.set(-81, 0.025, RZ);
+    r.position.set(-80.5, 0.025, RZ);
     canalGrp.add(r);
+  }
+  { // 交叉口无缝补丁: 纯沥青(按路面 mip 混合白线后的等效色), 无边界
+    const patch = new THREE.Mesh(new THREE.PlaneGeometry(20.4, 20.4).rotateX(-Math.PI/2), flatMat(0x101317, 0x3d4248));
+    patch.position.set(RX, 0.035, RZ);
+    canalGrp.add(patch);
   }
   /* 红绿灯（南路×东路交叉口, 对角两台） */
   const tlPoleMat = flatMat(0x17191d, 0x3a3f45);
