@@ -488,7 +488,7 @@
 
   function createWaterPlay(){
     const group = new THREE.Group();
-    group.position.set(0, 0, 5);
+    group.position.set(0, 0, 16);
     const outline = new THREE.Shape();
     outline.moveTo(-14, 18);
     outline.bezierCurveTo(-22, 5, -18, -12, -12, -25);
@@ -501,7 +501,7 @@
       new THREE.MeshStandardMaterial({color:0x7d6a4a, roughness:.95, side:THREE.DoubleSide})
     );
     shore.rotation.x = Math.PI/2;
-    shore.scale.set(1.08, 1.08, 1);
+    shore.scale.set(1.08, 0.62, 1);
     shore.position.y = 0.05;
     group.add(shore);
 
@@ -510,11 +510,12 @@
       new THREE.MeshStandardMaterial({color:0x65d0f0, roughness:.18, metalness:.04, transparent:true, opacity:.92, side:THREE.DoubleSide})
     );
     water.rotation.x = Math.PI/2;
+    water.scale.set(1, 0.574, 1);
     water.position.y = 0.12;
     group.add(water);
 
     const stoneMat = new THREE.MeshStandardMaterial({color:0xb8a57d, roughness:.9});
-    [[-8,4],[3,16],[11,2]].forEach(([x,z])=>{
+    [[-8,-14],[3,-4],[11,-16]].forEach(([x,z])=>{
       const stone = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.4, 0.55, 10), stoneMat);
       stone.position.set(x, 0.38, z);
       stone.castShadow = true;
@@ -522,7 +523,7 @@
     });
 
     const jetMat = new THREE.MeshBasicMaterial({color:0xaee8ff, transparent:true, opacity:.45, side:THREE.DoubleSide});
-    [[-5,5],[8,14]].forEach(([x,z])=>{
+    [[-5,-12],[8,-8]].forEach(([x,z])=>{
       const jet = new THREE.Mesh(new THREE.CylinderGeometry(.18, .32, 3.4, 8), jetMat);
       jet.position.set(x, 1.8, z);
       group.add(jet);
@@ -560,13 +561,13 @@
     const g = cv.getContext('2d'); const e = em.getContext('2d');
     const M = 44;
     const cw = (1024 - M*2) / cols, ch = (1024 - M*2) / rows;
-    const tint = (day ? ['#e8e2d4','#e4ddcf','#dfd7c8','#e9e1d1'] : ['#d8d1c3','#d4ccbc','#cfc7b7','#d9d0bf'])[b.id%4];
+    const tint = (day ? ['#d8cdb4','#d3c7ad','#cdc0a4','#dbd0ba'] : ['#d8d1c3','#d4ccbc','#cfc7b7','#d9d0bf'])[b.id%4];
     const base = g.createLinearGradient(0,0,0,1024);
-    base.addColorStop(0,tint); base.addColorStop(.55, day?'#ded7c7':'#c9c1b2'); base.addColorStop(1, day?'#cec5b5':'#b3aa9b');
+    base.addColorStop(0,tint); base.addColorStop(.55, day?'#c8bba0':'#c9c1b2'); base.addColorStop(1, day?'#b2a488':'#b3aa9b');
     g.fillStyle = base; g.fillRect(0,0,1024,1024);
     for(let i=0;i<cols;i++){
       const x = M + i*cw;
-      g.fillStyle = 'rgba(90,82,70,.18)';
+      g.fillStyle = day ? 'rgba(70,60,45,.22)' : 'rgba(90,82,70,.18)';
       g.fillRect(x, M, 5, 1024-M*2);
     }
     g.fillStyle = 'rgba(255,255,255,.10)'; g.fillRect(0, M, 1024, 4);
@@ -575,10 +576,10 @@
     const floorRooms = roomsByB[b.id] || [];
     for(let f=1; f<=rows; f++){
       const yTop = 1024 - M - f*ch;
-      g.fillStyle = 'rgba(100,92,80,.28)'; g.fillRect(M, yTop+ch-3, 1024-M*2, 3);
+      g.fillStyle = day ? 'rgba(88,76,58,.38)' : 'rgba(100,92,80,.28)'; g.fillRect(M, yTop+ch-3, 1024-M*2, 3);
       if(b.type !== '洋房' && f < b.residentFrom){
         const lg = g.createLinearGradient(0, yTop, 0, yTop+ch);
-        if(day){ lg.addColorStop(0,'#7b8387'); lg.addColorStop(.55,'#99a1a5'); lg.addColorStop(1,'#666e73'); }
+        if(day){ lg.addColorStop(0,'#697378'); lg.addColorStop(.55,'#879196'); lg.addColorStop(1,'#525a60'); }
         else { lg.addColorStop(0,'#2a2b2b'); lg.addColorStop(.55,'#3a342a'); lg.addColorStop(1,'#171a1e'); }
         g.fillStyle = lg; g.fillRect(M+10, yTop+ch*0.18, 1024-M*2-20, ch*0.68);
         if(!day){
@@ -586,7 +587,7 @@
           eg.addColorStop(0,'rgba(255,190,120,.10)'); eg.addColorStop(.6,'rgba(255,180,100,.55)'); eg.addColorStop(1,'rgba(255,160,80,.12)');
           e.fillStyle = eg; e.fillRect(M+10, yTop+ch*0.18, 1024-M*2-20, ch*0.68);
         }
-        g.fillStyle = day ? 'rgba(35,42,48,.5)' : 'rgba(10,12,14,.65)';
+        g.fillStyle = day ? 'rgba(25,31,36,.6)' : 'rgba(10,12,14,.65)';
         for(let d=0; d<3; d++) g.fillRect(1024/2-120+d*84, yTop+ch*0.34, 58, ch*0.52);
         continue;
       }
@@ -598,20 +599,20 @@
         const y = yTop + ch*0.19;
         const hh = ch*0.46;
         const on = r.joined > 0;
-        g.fillStyle = day ? 'rgba(96,88,76,.35)' : 'rgba(70,64,55,.42)';
+        g.fillStyle = day ? 'rgba(72,62,46,.5)' : 'rgba(70,64,55,.42)';
         g.fillRect(x-3, y-3, ww+6, hh+6);
         if(on){
           const wg = g.createLinearGradient(0,y,0,y+hh);
-          if(day){ wg.addColorStop(0,'#faf1dd'); wg.addColorStop(.5,'#f4e7c8'); wg.addColorStop(1,'#e9d6ae'); }
+          if(day){ wg.addColorStop(0,'#f8c766'); wg.addColorStop(.5,'#f0ab45'); wg.addColorStop(1,'#dd912e'); }
           else { wg.addColorStop(0,'#ffe3b4'); wg.addColorStop(.5,'#ffc477'); wg.addColorStop(1,'#e89b4f'); }
           g.fillStyle = wg; g.fillRect(x,y,ww,hh);
           g.fillStyle = day ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.28)'; g.fillRect(x,y,ww,hh*0.16);
         }else{
-          g.fillStyle = day ? '#b9c8d6' : '#1b2532'; g.fillRect(x,y,ww,hh);
+          g.fillStyle = day ? '#7b9cbd' : '#1b2532'; g.fillRect(x,y,ww,hh);
           g.fillStyle = day ? 'rgba(255,255,255,.4)' : 'rgba(120,160,210,.07)'; g.fillRect(x,y,ww,hh*0.2);
         }
-        g.fillStyle = 'rgba(60,55,48,.5)'; g.fillRect(x+ww/2-1, y, 2, hh);
-        g.fillStyle = 'rgba(80,72,62,.30)'; g.fillRect(x-2, y+hh+4, ww+4, 2);
+        g.fillStyle = day ? 'rgba(48,42,32,.6)' : 'rgba(60,55,48,.5)'; g.fillRect(x+ww/2-1, y, 2, hh);
+        g.fillStyle = day ? 'rgba(66,56,42,.45)' : 'rgba(80,72,62,.30)'; g.fillRect(x-2, y+hh+4, ww+4, 2);
         if(on && !day){
           const grad = e.createRadialGradient(x+ww/2, y+hh/2, 2, x+ww/2, y+hh/2, ww*0.75);
           grad.addColorStop(0,'rgba(255,220,170,1)');
@@ -645,6 +646,7 @@
       new THREE.BoxGeometry(w+3.2, 1.4, d+3.2),
       new THREE.MeshStandardMaterial({color:0x171f29, roughness:.9, metalness:.05})
     );
+    regColor(pod.material.color, 0x171f29, 0x2c3540);
     pod.position.y = 0.7;
     pod.castShadow = true; pod.receiveShadow = true;
     group.add(pod);
@@ -657,7 +659,9 @@
     facadeMat.map = facades[facades.length-1].n.map;
     facadeMat.emissiveMap = facades[facades.length-1].n.glow;
     const endMat = new THREE.MeshStandardMaterial({color:0xc4bbab, roughness:0.88, metalness:0.03});
+    regColor(endMat.color, 0xc4bbab, 0xa3967a);
     const roofMat = new THREE.MeshStandardMaterial({color:0x565b62, roughness:0.9, metalness:0.08});
+    regColor(roofMat.color, 0x565b62, 0x474e59);
     const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [endMat, endMat, roofMat, roofMat, facadeMat, facadeMat]);
     body.position.y = 1.4 + h/2;
     body.castShadow = true; body.receiveShadow = true;
@@ -669,11 +673,13 @@
       new THREE.BoxGeometry(w+0.9, 0.9, d+0.9),
       new THREE.MeshStandardMaterial({color:0x8a8478, roughness:.85, metalness:.05})
     );
+    regColor(roof.material.color, 0x8a8478, 0x746e62);
     roof.position.y = 1.4 + h + 0.45;
     roof.castShadow = true;
     group.add(roof);
 
     const paraMat = new THREE.MeshStandardMaterial({color:0xaaa294, roughness:.82, metalness:.06});
+    regColor(paraMat.color, 0xaaa294, 0x8e8471);
     const frontBack = new THREE.BoxGeometry(w+0.9, 1.1, 0.35);
     [-1,1].forEach(s=>{
       const p = new THREE.Mesh(frontBack, paraMat);
