@@ -14,6 +14,21 @@ TOTAL_HOUSEHOLDS = 478
 SNAPSHOT_DATE = "2026-11-05"   # 数据口径日期
 SNAPSHOT_GROUP_SIZE = 297      # 群快照人数；快照后补录成员在此之上累加
 MANUAL_FILE = RAW / "manual-members.csv"
+OVERRIDES_FILE = RAW / "member-overrides.json"
+
+
+# 昵称↔房号映射等本地覆盖数据不进仓库（data/raw 已忽略）
+def load_overrides():
+    if not OVERRIDES_FILE.exists():
+        return {}
+    return json.loads(OVERRIDES_FILE.read_text(encoding="utf-8"))
+
+
+OVER = load_overrides()
+GROUP_NICK = OVER.get("groupNick", {})
+USER_CONFIRMED = OVER.get("userConfirmed", {})
+NICK_ONLY = OVER.get("nickOnly", {})
+NO_MERGE = set(OVER.get("noMerge", []))
 
 # 规划口径：8 幢 16F + 1 幢 13F + 1 幢 11F + 2 幢洋房（7F/6F）
 # 小高层 1F 架空，住宅从 2F 起，两梯三户；洋房一梯两户、每幢两单元、1F 起住。
@@ -144,9 +159,6 @@ def join_letter_runs(seq):
     return out
 
 
-NO_MERGE = {"301业主", "示例昵称E"}
-
-
 def build_members(seq):
     seq = join_letter_runs(seq)
     members, i = [], 0
@@ -186,10 +198,6 @@ def build_members(seq):
 def room_key(r):
     b, u, fl, no = r
     return f"{b}-{u}-{fl}{no:02d}" if u else f"{b}-{fl}{no:02d}"
-
-
-# 昵称无法解析、经用户确认归属的成员：昵称 -> 房号
-NICK_ONLY = {"301业主": "6-301"}
 
 
 def build_households(members):
@@ -239,21 +247,6 @@ def build_rooms():
                                   "f": fl, "no": no, "col": no - 1})
     return rooms
 
-
-# 群成员列表显示的是备注/微信昵称，以下 6 人通过微信资料卡的群昵称补全房号。
-GROUP_NICK = {
-    "示例昵称B": "10-1003",
-    "示例昵称A": "链家杨焱3-201",
-    "示例昵称C": "2-503 示例昵称C",
-    "示例昵称D": "8-903 示例昵称D",
-    "示例昵称E": "6-1201 示例昵称E",
-    "示例昵称F": "12-2-401 示例昵称F",
-}
-
-# 用户额外确认的归属（群昵称本身无法解析）
-USER_CONFIRMED = {
-    "示例昵称G": "2-502",
-}
 
 # 快照后补录的成员：从 data/raw/manual-members.csv 读取。
 # 每行「房号」或「昵称,房号」；同一房号可多行（第二人起只增人数，不增户）。
