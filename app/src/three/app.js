@@ -112,6 +112,7 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   applyTheme(initialDay, true);
 
   /* ---------- intro 生长动画 ---------- */
+  const INTRO_POS = new THREE.Vector3(-220, 290, 390);
   const t0 = performance.now();
   let introDone = false;
   function updateIntro(now){
@@ -126,11 +127,12 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
       buildings.labels[i].material.opacity = l;
       if(local < 1) done = false;
     });
+    /* 相机飞入：首帧若被着色器编译阻塞超过 820ms，t 会一次性跨过 1，
+     * 必须在该帧直接落到 HOME_POS，否则相机会永久停在入场起点。 */
+    const k = easeInOut(Math.min(1, t));
+    if(k < 1) camera.position.lerpVectors(INTRO_POS, HOME_POS, k);
+    else camera.position.copy(HOME_POS);
     if(done && t > 1.05){ introDone = true; }
-    if(t < 1){
-      const k = easeInOut(Math.min(1, t));
-      camera.position.lerpVectors(new THREE.Vector3(-220, 290, 390), HOME_POS, k);
-    }
   }
   function easeInOut(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
 
