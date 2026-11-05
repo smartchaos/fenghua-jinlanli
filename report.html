@@ -274,7 +274,7 @@
 
   <footer>
     <div>数据截至 2026-11-05 · 仅用于业主群内部统计</div>
-    <div id="visitStat" hidden>访问 <b id="vPv">–</b> 次 · 访客 <b id="vUv">–</b> 人</div>
+    <div id="visitStat" hidden>访问 <b id="vPv">–</b> 次<span id="vUvWrap" hidden> · 访客 <b id="vUv">–</b> 人</span></div>
   </footer>
 </div>
 
@@ -392,16 +392,22 @@
   }
   var seen = false;
   try{ seen = !!localStorage.getItem('spax-visitor'); }catch(_){}
-  Promise.all([
+  Promise.allSettled([
     req('hit', 'pageviews'),
     seen ? req('get', 'visitors') : req('hit', 'visitors').then(function(n){
       try{ localStorage.setItem('spax-visitor', '1'); }catch(_){}
       return n;
     })
-  ]).then(function(v){
+  ]).then(function(res){
     clearTimeout(timer);
-    document.getElementById('vPv').textContent = v[0];
-    document.getElementById('vUv').textContent = v[1];
+    var pv = res[0].status === 'fulfilled' ? res[0].value : null;
+    var uv = res[1].status === 'fulfilled' ? res[1].value : null;
+    if(pv === null) return;
+    document.getElementById('vPv').textContent = pv;
+    if(uv !== null){
+      document.getElementById('vUv').textContent = uv;
+      document.getElementById('vUvWrap').hidden = false;
+    }
     document.getElementById('visitStat').hidden = false;
   }).catch(function(){ clearTimeout(timer); });
 })();

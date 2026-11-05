@@ -15,7 +15,8 @@ export default function VisitStats() {
   if (!v) return null;
   return (
     <span className="visit" title="页面访问次数 · 独立访客数">
-      访问 <b>{v.pv}</b> · 访客 <b>{v.uv}</b>
+      访问 <b>{v.pv}</b>
+      {v.uv != null && <> · 访客 <b>{v.uv}</b></>}
     </span>
   );
 }
