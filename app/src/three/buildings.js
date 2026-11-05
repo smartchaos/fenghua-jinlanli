@@ -16,7 +16,7 @@ function makeLabel(b){
   g.shadowBlur = 8;
   g.fillStyle = 'rgba(246,178,107,.95)'; g.font = '500 30px "SF Mono",Menlo,monospace';
   g.fillText(`${b.joined}/${b.total}  ·  ${(b.rate*100).toFixed(0)}%`, 256, 136);
-  const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false });
   const sp = new THREE.Sprite(mat);
   sp.scale.set(30, 10.5, 1);
@@ -100,9 +100,9 @@ function makeFacade(b, day, roomsByB){
     });
   }
   const map = new THREE.CanvasTexture(cv);
-  map.encoding = THREE.sRGBEncoding; map.anisotropy = 8;
+  map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
   const glow = new THREE.CanvasTexture(em);
-  glow.encoding = THREE.sRGBEncoding; glow.anisotropy = 8;
+  glow.colorSpace = THREE.SRGBColorSpace; glow.anisotropy = 8;
   return { map, glow };
 }
 
@@ -176,9 +176,9 @@ function makeSide(b, day, roomsByB, endCol){
     }
   }
   const map = new THREE.CanvasTexture(cv);
-  map.encoding = THREE.sRGBEncoding; map.anisotropy = 8;
+  map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
   const glow = new THREE.CanvasTexture(em);
-  glow.encoding = THREE.sRGBEncoding; glow.anisotropy = 8;
+  glow.colorSpace = THREE.SRGBColorSpace; glow.anisotropy = 8;
   return { map, glow };
 }
 

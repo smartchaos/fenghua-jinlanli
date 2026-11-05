@@ -9,6 +9,10 @@ import { createVegetation, createCanalTrees, createWilds, createBoats, createCan
 import { createBuildings } from './buildings.js';
 import { createInteraction } from './interaction.js';
 
+/* 保持 r128 时代的色彩解析：Color.setHex 不做 sRGB→线性转换，
+ * 让既有配色/贴图校准值在升级后仍然成立。 */
+THREE.ColorManagement.enabled = false;
+
 export const THEME_KEY = 'spax-theme-v2';
 
 /* 场景总装: renderer/camera/lights/sky/ground/canal/wilds/buildings/interaction。
@@ -17,7 +21,7 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setSize(innerWidth, innerHeight);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.08;
   renderer.shadowMap.enabled = true;
@@ -48,15 +52,16 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   controls.enablePan = false;
   controls.update();
 
-  /* 灯光 */
-  const hemi = new THREE.HemisphereLight(0x9db3d6, 0x0a0e15, 0.62);
+  /* 灯光：r155 起取消 legacy 光强模式，旧的 0.62/1.45 等值需乘 π 才能复现原亮度 */
+  const PI = Math.PI;
+  const hemi = new THREE.HemisphereLight(0x9db3d6, 0x0a0e15, 0.62*PI);
   regColor(hemi.color, 0x9db3d6, 0xd8e6f5);
   regColor(hemi.groundColor, 0x0a0e15, 0x9aa78c);
-  regNum(hemi, 'intensity', 0.62, 0.85);
+  regNum(hemi, 'intensity', 0.62*PI, 0.85*PI);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffe2c0, 1.45);
+  const sun = new THREE.DirectionalLight(0xffe2c0, 1.45*PI);
   regColor(sun.color, 0xffe2c0, 0xfff6e6);
-  regNum(sun, 'intensity', 1.45, 1.5);
+  regNum(sun, 'intensity', 1.45*PI, 1.5*PI);
   sun.position.set(-110, 190, 120);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -65,13 +70,13 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   sun.shadow.camera.near = 10; sun.shadow.camera.far = 520;
   sun.shadow.bias = -0.0006;
   scene.add(sun);
-  const rim = new THREE.DirectionalLight(0x6a8dff, 0.34);
+  const rim = new THREE.DirectionalLight(0x6a8dff, 0.34*PI);
   regColor(rim.color, 0x6a8dff, 0xaac8ee);
-  regNum(rim, 'intensity', 0.34, 0.12);
+  regNum(rim, 'intensity', 0.34*PI, 0.12*PI);
   rim.position.set(160, 90, -180);
   scene.add(rim);
-  const warm = new THREE.PointLight(0xffb45c, 0.5, 260, 2);
-  regNum(warm, 'intensity', 0.5, 0);
+  const warm = new THREE.PointLight(0xffb45c, 0.5*PI, 260, 0);
+  regNum(warm, 'intensity', 0.5*PI, 0);
   warm.position.set(0, 40, 30);
   scene.add(warm);
 

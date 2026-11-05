@@ -43,7 +43,7 @@ export function createCanal(scene, renderer){
       g.fillStyle = day ? 'rgba(255,255,255,.92)' : 'rgba(228,235,242,.6)';
       g.fillRect(3, 0, 3, 512); g.fillRect(58, 0, 3, 512);       // 边线
       for(let y = 12; y < 512; y += 64) g.fillRect(30, y, 3, 32); // 中央虚线
-      const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
       t.anisotropy = maxAniso;
       t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, len/80);
       return t;
@@ -60,7 +60,7 @@ export function createCanal(scene, renderer){
       g.fillStyle = day ? 'rgba(255,255,255,.92)' : 'rgba(228,235,242,.6)';
       g.fillRect(0, 3, 512, 3); g.fillRect(0, 58, 512, 3);       // 边线
       for(let x = 12; x < 512; x += 64) g.fillRect(x, 30, 32, 3); // 中央虚线
-      const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
       t.anisotropy = maxAniso;
       t.wrapS = THREE.RepeatWrapping; t.repeat.set(len/80, 1);
       return t;
@@ -119,7 +119,7 @@ export function createCanal(scene, renderer){
       g.fillStyle = day ? 'rgba(255,255,255,.92)' : 'rgba(228,235,242,.6)';
       g.fillRect(61, 0, 6, 128);   // 南北向实线, 宽 0.95m 与路段虚线同宽
       g.fillRect(115, 0, 6, 128);  // 东侧边线, 对齐路段纹理 u=58..61/64 (x 8.1..9.1); 西侧为南路支路口开口, 保持断开
-      const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
       t.anisotropy = maxAniso;
       return t;
     };

@@ -22,7 +22,7 @@ export function flatMat(nightHex, dayHex, opts){
     const cv = document.createElement('canvas'); cv.width = cv.height = 8;
     const g = cv.getContext('2d');
     g.fillStyle = '#' + hex.toString(16).padStart(6, '0'); g.fillRect(0, 0, 8, 8);
-    const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
     return t;
   };
   const m = new THREE.MeshBasicMaterial(Object.assign({ map: mk(nightHex) }, opts || {}));

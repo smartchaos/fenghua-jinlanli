@@ -47,7 +47,7 @@ export function makeSky(day){
     g.beginPath(); g.arc(mx-8, my-6, 5, 0, 7); g.fill();
     g.beginPath(); g.arc(mx+9, my+8, 4, 0, 7); g.fill();
   }
-  const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 

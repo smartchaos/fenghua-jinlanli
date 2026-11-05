@@ -164,7 +164,7 @@ export function createSite(day, buildings, maxAnisotropy){
   g.textAlign = 'left'; g.fillStyle = P.lblRoad; g.fillText('朱 家 坝 路', px(-60), py(152));
 
   const tex = new THREE.CanvasTexture(cv);
-  tex.encoding = THREE.sRGBEncoding;
+  tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = maxAnisotropy;
   return { tex, treeSpots };
 }
@@ -200,6 +200,6 @@ export function drawMeadow(day){
     g.beginPath(); g.arc(rnd()*2048, rnd()*2048, 2+rnd()*3.2, 0, 7); g.fill();
   }
   g.globalAlpha = 1;
-  const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   return tex;
 }

@@ -195,7 +195,7 @@ export function createCanalLabel(canalGrp){
   const g = cv.getContext('2d');
   g.font = '500 72px "PingFang SC",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = '#fff'; g.fillText('京 杭 大 运 河', 512, 64);
-  const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.8, depthWrite: false });
   regColor(mat.color, 0x93a9be, 0x3d5a74);
   const sp = new THREE.Sprite(mat);
