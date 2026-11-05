@@ -11,8 +11,9 @@ RAW = ROOT / "data" / "raw"
 DATA = ROOT / "data"
 
 TOTAL_HOUSEHOLDS = 478
-# 群人数：297（11-04 快照）+ 2（快照后入群：3-1101 / 4-901，各 1 人）
-GROUP_SIZE = 299
+SNAPSHOT_DATE = "2026-11-05"   # 数据口径日期
+SNAPSHOT_GROUP_SIZE = 297      # 群快照人数；快照后补录成员在此之上累加
+MANUAL_FILE = RAW / "manual-members.csv"
 
 # 规划口径：8 幢 16F + 1 幢 13F + 1 幢 11F + 2 幢洋房（7F/6F）
 # 小高层 1F 架空，住宅从 2F 起，两梯三户；洋房一梯两户、每幢两单元、1F 起住。
@@ -187,6 +188,10 @@ def room_key(r):
     return f"{b}-{u}-{fl}{no:02d}" if u else f"{b}-{fl}{no:02d}"
 
 
+# 昵称无法解析、经用户确认归属的成员：昵称 -> 房号
+NICK_ONLY = {"301业主": "6-301"}
+
+
 def build_households(members):
     households = {}
     for m in members:
@@ -199,16 +204,15 @@ def build_households(members):
             h["status"] = "inferred"
             h["note"] = m["note"]
 
-    # 昵称“301业主”：用户已确认归为 6-301。
-    # 6-301 已有房号昵称成员，因此不新增户，只增加一名确认成员。
-    owner = next((x for x in members if x["nick"] == "301业主"), None)
-    if owner:
-        h = households.get("6-301")
-        if h is None:
-            h = households.setdefault("6-301", {"key": "6-301", "members": [], "status": "confirmed", "note": ""})
-        h["members"].append("301业主")
-        h["note"] = "含用户确认归属：301业主（昵称无楼栋，归为 6-301）"
-        owner["note"] = "用户确认归为 6-301（昵称无楼栋）"
+    # 昵称无法解析但用户已确认归属的成员：只增人不新增户。
+    for nick, key in NICK_ONLY.items():
+        owner = next((x for x in members if x["nick"] == nick), None)
+        if not owner:
+            continue
+        h = households.setdefault(key, {"key": key, "members": [], "status": "confirmed", "note": ""})
+        h["members"].append(nick)
+        h["note"] = f"含用户确认归属：{nick}（昵称无楼栋，归为 {key}）"
+        owner["note"] = f"用户确认归为 {key}（昵称无楼栋）"
     return households
 
 
@@ -251,8 +255,32 @@ USER_CONFIRMED = {
     "示例昵称G": "2-502",
 }
 
-# 快照后手工补录的入群业主（群昵称即房号，各 1 人）
-MANUAL_ADDITIONS = ["3-1101", "4-901"]
+# 快照后补录的成员：从 data/raw/manual-members.csv 读取。
+# 每行「房号」或「昵称,房号」；同一房号可多行（第二人起只增人数，不增户）。
+def load_manual_members():
+    if not MANUAL_FILE.exists():
+        return []
+    out, seen = [], set()
+    for lineno, raw in enumerate(MANUAL_FILE.read_text(encoding="utf-8-sig").splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "," in line:
+            nick, room = (x.strip() for x in line.split(",", 1))
+        else:
+            nick, room = line, line
+        nick = nick or room
+        if (nick, room) in seen:
+            continue
+        seen.add((nick, room))
+        rooms = parse_rooms(room)
+        if not rooms:
+            raise SystemExit(
+                f"manual-members.csv 第 {lineno} 行房号无法解析：{room!r}。"
+                "洋房请写 楼-单元-房号（如 11-1-101 / 12-2-401），高层写 楼-房号（如 7-1303）。"
+            )
+        out.append({"nick": nick, "rooms": rooms, "note": "快照后手工补录"})
+    return out
 
 
 def apply_group_nicknames(members):
@@ -283,9 +311,15 @@ def main():
     members = build_members(seq)
     apply_group_nicknames(members)
     apply_user_confirmed(members)
-    for key in MANUAL_ADDITIONS:
-        members.append({"nick": key, "rooms": parse_rooms(key), "note": "快照后手工补录"})
+    base_keys = set(build_households(members))
+    manual = load_manual_members()
+    members.extend(manual)
+    group_size = SNAPSHOT_GROUP_SIZE + len(manual)
     households = build_households(members)
+    manual_keys = {room_key(m["rooms"][0]) for m in manual if m["rooms"]}
+    new_keys = manual_keys - base_keys
+    print(f"补录 {len(manual)} 名：新增房号 {len(new_keys)} 户，"
+          f"已入群房号加人 {len(manual) - len(new_keys)} 名")
     rooms = build_rooms()
 
     DATA.mkdir(exist_ok=True)
@@ -340,13 +374,13 @@ def main():
             **LAYOUT[b],
         })
 
-    identified = sum(1 for m in members if m["rooms"]) + 1  # 301业主 计入
+    identified = sum(1 for m in members if m["rooms"] or m["nick"] in NICK_ONLY)
     stats = {
         "groupName": "风华锦澜里业主群",
-        "groupSize": GROUP_SIZE,
+        "groupSize": group_size,
         "captured": len(members),
         "identifiedMembers": identified,
-        "unresolvedMembers": sum(1 for m in members if not m["rooms"] and m["nick"] != "301业主"),
+        "unresolvedMembers": sum(1 for m in members if not m["rooms"] and m["nick"] not in NICK_ONLY),
         "households": len(households),
         "confirmedHouseholds": sum(1 for h in households.values() if h["status"] == "confirmed"),
         "inferredHouseholds": sum(1 for h in households.values() if h["status"] == "inferred"),
@@ -355,7 +389,7 @@ def main():
         "memberDistribution": {str(k): v for k, v in sorted(dist.items())},
         "buildings": buildings,
         "floorMatrix": floor_matrix,
-        "capturedExtra": len(members) - GROUP_SIZE,
+        "capturedExtra": len(members) - group_size,
     }
     (DATA / "stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -364,11 +398,11 @@ def main():
         "meta": {
             "title": "风华锦澜里 · 业主入群分布",
             "groupName": stats["groupName"],
-            "date": "2026-11-04",
+            "date": SNAPSHOT_DATE,
             "totalHouseholds": TOTAL_HOUSEHOLDS,
             "households": stats["households"],
             "coverage": stats["coverage"],
-            "groupSize": GROUP_SIZE,
+            "groupSize": group_size,
             "captured": len(members),
             "unresolved": stats["unresolvedMembers"],
             "inferred": stats["inferredHouseholds"],
