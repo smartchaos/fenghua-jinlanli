@@ -20,8 +20,15 @@ OVERRIDES_FILE = RAW / "member-overrides.json"
 # 昵称↔房号映射等本地覆盖数据不进仓库（data/raw 已忽略）
 def load_overrides():
     if not OVERRIDES_FILE.exists():
-        return {}
-    return json.loads(OVERRIDES_FILE.read_text(encoding="utf-8"))
+        raise SystemExit(
+            f"缺少 {OVERRIDES_FILE.relative_to(ROOT)}：昵称↔房号映射与合并规则不在仓库内。\n"
+            '请从本地备份恢复该文件（结构：{"groupNick":{},"userConfirmed":{},"nickOnly":{},"noMerge":[]}），'
+            "否则房号补全会静默少算。"
+        )
+    try:
+        return json.loads(OVERRIDES_FILE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise SystemExit(f"{OVERRIDES_FILE.relative_to(ROOT)} 解析失败：{e}")
 
 
 OVER = load_overrides()
@@ -29,6 +36,10 @@ GROUP_NICK = OVER.get("groupNick", {})
 USER_CONFIRMED = OVER.get("userConfirmed", {})
 NICK_ONLY = OVER.get("nickOnly", {})
 NO_MERGE = set(OVER.get("noMerge", []))
+# 昵称被拆成多个 token 时的合并规则，同样只存在于本地覆盖文件
+JOIN_NAME_TOKENS = set(OVER.get("joinWithRoom", []))
+JOIN_PAIRS = {tuple(p) for p in OVER.get("joinPairs", [])}
+PREFIX_RULES = [tuple(r) for r in OVER.get("prefixRules", [])]
 
 # 规划口径：8 幢 16F + 1 幢 13F + 1 幢 11F + 2 幢洋房（7F/6F）
 # 小高层 1F 架空，住宅从 2F 起，两梯三户；洋房一梯两户、每幢两单元、1F 起住。
@@ -176,17 +187,22 @@ def build_members(seq):
                 members.append({"nick": t + " " + nxt, "rooms": [nxt_room], "note": "合并空格昵称"})
                 i += 2
                 continue
-            if t in ("示例昵称J", "示例昵称K") and nxt and parse_rooms(nxt):
+            if t in JOIN_NAME_TOKENS and nxt and parse_rooms(nxt):
                 members.append({"nick": t + " " + nxt, "rooms": parse_rooms(nxt), "note": "合并空格昵称"})
                 i += 2
                 continue
-            if t.startswith("示例昵称I"):
+            merged = False
+            for prefix, token, room in PREFIX_RULES:
                 buf = seq[i:i + 3]
-                if "4401" in buf:
-                    members.append({"nick": " ".join(buf), "rooms": [(4, 0, 4, 1)], "note": "用户确认 4401 为 4-401"})
+                if t.startswith(prefix) and token in buf:
+                    members.append({"nick": " ".join(buf), "rooms": parse_rooms(room),
+                                    "note": f"用户确认 {token} 为 {room}"})
                     i += 3
-                    continue
-            if t == "示例昵称G1" and nxt == "🍀":
+                    merged = True
+                    break
+            if merged:
+                continue
+            if (t, nxt) in JOIN_PAIRS:
                 members.append({"nick": t + " " + nxt, "rooms": [], "note": "无有效房号"})
                 i += 2
                 continue
@@ -300,6 +316,8 @@ def apply_user_confirmed(members):
 
 
 def main():
+    print(f"覆盖项：groupNick {len(GROUP_NICK)} / userConfirmed {len(USER_CONFIRMED)} "
+          f"/ nickOnly {len(NICK_ONLY)} / noMerge {len(NO_MERGE)}")
     seq = stitch(extract_pages())
     members = build_members(seq)
     apply_group_nicknames(members)
