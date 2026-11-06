@@ -11,8 +11,8 @@ RAW = ROOT / "data" / "raw"
 DATA = ROOT / "data"
 
 TOTAL_HOUSEHOLDS = 478
-SNAPSHOT_DATE = "2026-11-05"   # 数据口径日期
-SNAPSHOT_GROUP_SIZE = 297      # 群快照人数；快照后补录成员在此之上累加
+SNAPSHOT_DATE = "2026-11-06"   # 数据口径日期
+SNAPSHOT_GROUP_SIZE = 303      # 群快照人数；快照后补录成员在此之上累加
 MANUAL_FILE = RAW / "manual-members.csv"
 OVERRIDES_FILE = RAW / "member-overrides.json"
 
@@ -315,6 +315,36 @@ def apply_user_confirmed(members):
         m["note"] = f"用户确认归为 {key}"
 
 
+def nick_key(text: str) -> str:
+    return re.sub(r"\s+", "", norm(text)).lower()
+
+
+# 快照后补录的台账与新快照可能指向同一个人：昵称命中即视为重复，只提示不自动删。
+def dedup_manual(manual, snapshot_members):
+    snap_nicks = {}
+    for m in snapshot_members:
+        snap_nicks.setdefault(nick_key(m["nick"]), m["nick"])
+    by_room = {}
+    for m in snapshot_members:
+        if m["rooms"]:
+            by_room.setdefault(room_key(m["rooms"][0]), []).append(m["nick"])
+
+    kept, dropped, review = [], [], []
+    for e in manual:
+        k = nick_key(e["nick"])
+        hit = snap_nicks.get(k)
+        if not hit:
+            hit = next((n for key, n in snap_nicks.items() if k and (k in key or key in k)), None)
+        if hit:
+            dropped.append((e["nick"], f"昵称已在新快照中：{hit}"))
+            continue
+        rk = room_key(e["rooms"][0])
+        if rk in by_room:
+            review.append((e["nick"], rk, by_room[rk]))
+        kept.append(e)
+    return kept, dropped, review
+
+
 def main():
     print(f"覆盖项：groupNick {len(GROUP_NICK)} / userConfirmed {len(USER_CONFIRMED)} "
           f"/ nickOnly {len(NICK_ONLY)} / noMerge {len(NO_MERGE)}")
@@ -322,15 +352,22 @@ def main():
     members = build_members(seq)
     apply_group_nicknames(members)
     apply_user_confirmed(members)
-    base_keys = set(build_households(members))
-    manual = load_manual_members()
+    snapshot = members[:]
+    base_keys = set(build_households(snapshot))
+    manual_all = load_manual_members()
+    manual, dropped, review = dedup_manual(manual_all, snapshot)
+    for nick, why in dropped:
+        print(f"补录去重：{nick} —— {why}（本次快照已含，不再累加）")
+    for nick, rk, nicks in review:
+        print(f"补录待确认：{nick} 的房号 {rk} 新快照里已有 {len(nicks)} 人 {nicks}，"
+              "若为同住户第二人则保留，若为同一人请从台账删除")
     members.extend(manual)
     group_size = SNAPSHOT_GROUP_SIZE + len(manual)
     households = build_households(members)
     manual_keys = {room_key(m["rooms"][0]) for m in manual if m["rooms"]}
     new_keys = manual_keys - base_keys
-    print(f"补录 {len(manual)} 名：新增房号 {len(new_keys)} 户，"
-          f"已入群房号加人 {len(manual) - len(new_keys)} 名")
+    print(f"补录 {len(manual)}/{len(manual_all)} 名（去重 {len(dropped)}）："
+          f"新增房号 {len(new_keys)} 户，已入群房号加人 {len(manual) - len(new_keys)} 名")
     rooms = build_rooms()
 
     DATA.mkdir(exist_ok=True)
@@ -385,13 +422,16 @@ def main():
             **LAYOUT[b],
         })
 
-    identified = sum(1 for m in members if m["rooms"] or m["nick"] in NICK_ONLY)
+    unresolved = sum(1 for m in members if not m["rooms"] and m["nick"] not in NICK_ONLY)
+    # 已匹配成员以群人数为权威口径：captured 是含虚拟列表重复渲染的原始记录数，
+    # 不能直接当成员数（capturedExtra 即该假象）；按房号归并的户数不受影响。
+    identified = group_size - unresolved
     stats = {
         "groupName": "风华锦澜里业主群",
         "groupSize": group_size,
         "captured": len(members),
         "identifiedMembers": identified,
-        "unresolvedMembers": sum(1 for m in members if not m["rooms"] and m["nick"] not in NICK_ONLY),
+        "unresolvedMembers": unresolved,
         "households": len(households),
         "confirmedHouseholds": sum(1 for h in households.values() if h["status"] == "confirmed"),
         "inferredHouseholds": sum(1 for h in households.values() if h["status"] == "inferred"),
@@ -415,6 +455,7 @@ def main():
             "coverage": stats["coverage"],
             "groupSize": group_size,
             "captured": len(members),
+            "identifiedMembers": identified,
             "unresolved": stats["unresolvedMembers"],
             "inferred": stats["inferredHouseholds"],
         },
