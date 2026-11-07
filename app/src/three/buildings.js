@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { regColor } from './theme.js';
 import { heightOf } from '../data/index.js';
+import { SITE_LIFT } from './constants.js';
 
 /* 楼名+入群率标签 Sprite（随楼生长的 intro 动画控制 opacity） */
 function makeLabel(b){
@@ -32,10 +33,21 @@ function makeFacade(b, day, roomsByB){
   const g = cv.getContext('2d'); const e = em.getContext('2d');
   const M = 44;
   const cw = (1024 - M*2) / cols, ch = (1024 - M*2) / rows;
-  const tint = (day ? ['#d8cdb4','#d3c7ad','#cdc0a4','#dbd0ba'] : ['#d8d1c3','#d4ccbc','#cfc7b7','#d9d0bf'])[b.id%4];
+  /* 实景立面：高层=浅灰白铝板+深灰玻璃，洋房=暖灰褐石材；底部略深 */
+  const hi = b.type === '洋房';
+  const tint = (hi
+    ? (day ? ['#d8cbb6','#d3c5af','#ccbda7','#dbceba'] : ['#cfc5b2','#c9bfa9','#c3b7a1','#d1c7b3'])
+    : (day ? ['#e4e4e1','#dededa','#d8d8d4','#e8e7e4'] : ['#d7d7d3','#d1d1cd','#cbcbc7','#dbdbd7']))[b.id%4];
   const base = g.createLinearGradient(0, 0, 0, 1024);
-  base.addColorStop(0, tint); base.addColorStop(.55, day ? '#c8bba0' : '#c9c1b2'); base.addColorStop(1, day ? '#b2a488' : '#b3aa9b');
+  base.addColorStop(0, tint);
+  base.addColorStop(.55, hi ? (day ? '#c5b69e' : '#bdb2a1') : (day ? '#d2d2ce' : '#c9c9c5'));
+  base.addColorStop(1, hi ? (day ? '#ae9e85' : '#a99f8e') : (day ? '#bfbdb8' : '#b8b7b2'));
   g.fillStyle = base; g.fillRect(0, 0, 1024, 1024);
+  /* 高层竖向白色翼板（实景立面的细竖棱） */
+  if(!hi){
+    g.fillStyle = day ? 'rgba(255,255,255,.5)' : 'rgba(232,238,244,.16)';
+    for(let i = 1; i < 6; i++) g.fillRect(i*1024/6 - 2, 0, 4, 1024);
+  }
   for(let i = 0; i < cols; i++){
     const x = M + i*cw;
     g.fillStyle = day ? 'rgba(70,60,45,.22)' : 'rgba(90,82,70,.18)';
@@ -52,7 +64,15 @@ function makeFacade(b, day, roomsByB){
   const floorRooms = roomsByB[b.id] || [];
   for(let f = 1; f <= rows; f++){
     const yTop = 1024 - M - f*ch;
-    g.fillStyle = day ? 'rgba(88,76,58,.38)' : 'rgba(100,92,80,.28)'; g.fillRect(M, yTop+ch-3, 1024-M*2, 3);
+    g.fillStyle = day ? 'rgba(255,255,255,.55)' : 'rgba(236,241,246,.2)';
+    g.fillRect(M, yTop+ch-6, 1024-M*2, 3);
+    g.fillStyle = day ? 'rgba(88,76,58,.38)' : 'rgba(100,92,80,.28)';
+    g.fillRect(M, yTop+ch-3, 1024-M*2, 3);
+    /* 洋房窗下水平百叶(实景 note-07) */
+    if(hi){
+      g.fillStyle = day ? 'rgba(118,98,74,.42)' : 'rgba(92,82,68,.32)';
+      for(let k = 0; k < 3; k++) g.fillRect(M+16, yTop+ch*0.80 + k*3, 1024-M*2-32, 1.6);
+    }
     if(b.type !== '洋房' && f < b.residentFrom){
       const lg = g.createLinearGradient(0, yTop, 0, yTop+ch);
       if(day){ lg.addColorStop(0,'#697378'); lg.addColorStop(.55,'#879196'); lg.addColorStop(1,'#525a60'); }
@@ -70,12 +90,14 @@ function makeFacade(b, day, roomsByB){
     const fr = floorRooms.filter(r=>r.f === f);
     fr.forEach(r=>{
       const c = cols - 1 - r.col;
-      const x = M + c*cw + cw*0.17;
-      const ww = cw*0.66;
-      const y = yTop + ch*0.19;
-      const hh = ch*0.46;
+      const x = M + c*cw + cw*0.10;
+      const ww = cw*0.80;
+      const y = yTop + ch*0.14;
+      const hh = ch*0.58;
       const on = r.joined > 0;
-      g.fillStyle = day ? 'rgba(72,62,46,.5)' : 'rgba(70,64,55,.42)';
+      g.fillStyle = hi
+        ? (day ? 'rgba(72,62,46,.5)' : 'rgba(70,64,55,.42)')
+        : (day ? 'rgba(72,78,84,.55)' : 'rgba(58,64,70,.5)');
       g.fillRect(x-3, y-3, ww+6, hh+6);
       if(on){
         const wg = g.createLinearGradient(0, y, 0, y+hh);
@@ -84,11 +106,13 @@ function makeFacade(b, day, roomsByB){
         g.fillStyle = wg; g.fillRect(x, y, ww, hh);
         g.fillStyle = day ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.28)'; g.fillRect(x, y, ww, hh*0.16);
       }else{
-        g.fillStyle = day ? '#7b9cbd' : '#1b2532'; g.fillRect(x, y, ww, hh);
+        g.fillStyle = day ? '#5c7284' : '#141d27'; g.fillRect(x, y, ww, hh);
         g.fillStyle = day ? 'rgba(255,255,255,.4)' : 'rgba(120,160,210,.07)'; g.fillRect(x, y, ww, hh*0.2);
       }
-      g.fillStyle = day ? 'rgba(48,42,32,.6)' : 'rgba(60,55,48,.5)'; g.fillRect(x+ww/2-1, y, 2, hh);
-      g.fillStyle = day ? 'rgba(66,56,42,.45)' : 'rgba(80,72,62,.30)'; g.fillRect(x-2, y+hh+4, ww+4, 2);
+      g.fillStyle = day ? (hi ? 'rgba(48,42,32,.6)' : 'rgba(58,64,70,.62)') : (hi ? 'rgba(60,55,48,.5)' : 'rgba(40,46,52,.55)');
+      g.fillRect(x+ww/2-1, y, 2, hh);
+      g.fillStyle = day ? (hi ? 'rgba(66,56,42,.45)' : 'rgba(150,155,160,.6)') : (hi ? 'rgba(80,72,62,.30)' : 'rgba(120,126,132,.35)');
+      g.fillRect(x-2, y+hh+4, ww+4, 2);
       if(on && !day){
         const grad = e.createRadialGradient(x+ww/2, y+hh/2, 2, x+ww/2, y+hh/2, ww*0.75);
         grad.addColorStop(0,'rgba(255,220,170,1)');
@@ -117,9 +141,14 @@ function makeSide(b, day, roomsByB, endCol){
   const g = cv.getContext('2d'); const e = em.getContext('2d');
   const M = 20;
   const bw = W - M*2, ch = (1024 - M*2) / rows;
-  const tint = (day ? ['#cdc3ae','#c8bda6','#c3b79e','#d0c5b0'] : ['#d2cab9','#cec5b3','#c9c0ae','#d3cabb'])[b.id%4];
+  const hsi = b.type === '洋房';
+  const tint = (hsi
+    ? (day ? ['#d5c8b3','#d0c2ac','#c9baa4','#d8cbb7'] : ['#cec4b1','#c8bea8','#c2b6a0','#d0c6b2'])
+    : (day ? ['#e2e2df','#dcdcd8','#d6d6d2','#e6e5e2'] : ['#d6d6d2','#d0d0cc','#cacac6','#dadad6']))[b.id%4];
   const base = g.createLinearGradient(0, 0, 0, 1024);
-  base.addColorStop(0, tint); base.addColorStop(.6, day ? '#b5a78c' : '#bcb2a1'); base.addColorStop(1, day ? '#a2947a' : '#aaa191');
+  base.addColorStop(0, tint);
+  base.addColorStop(.6, hsi ? (day ? '#bbac94' : '#b7ac9b') : (day ? '#cececa' : '#c5c5c1'));
+  base.addColorStop(1, hsi ? (day ? '#a6977e' : '#a69c8b') : (day ? '#bab8b3' : '#b3b2ad'));
   g.fillStyle = base; g.fillRect(0, 0, W, 1024);
   /* 端头竖向分缝 */
   g.fillStyle = day ? 'rgba(90,78,60,.20)' : 'rgba(70,64,54,.18)';
@@ -306,13 +335,13 @@ export function createBuildings(scene, buildings, roomsByB){
     const d = b.type === '洋房' ? 16 : 14;
     const h = heightOf(b);
     const group = new THREE.Group();
-    group.position.set(b.x, 0, b.z);
+    group.position.set(b.x, SITE_LIFT, b.z);
 
     const pod = new THREE.Mesh(
       new THREE.BoxGeometry(w+3.2, 1.4, d+3.2),
-      new THREE.MeshStandardMaterial({ color: 0x171f29, roughness: .9, metalness: .05 })
+      new THREE.MeshStandardMaterial({ color: 0x181e24, roughness: .9, metalness: .05 })
     );
-    regColor(pod.material.color, 0x171f29, 0x2c3540);
+    regColor(pod.material.color, 0x181e24, 0x3d4347);
     pod.position.y = 0.7;
     pod.castShadow = true; pod.receiveShadow = true;
     group.add(pod);
@@ -343,7 +372,7 @@ export function createBuildings(scene, buildings, roomsByB){
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x565b62, roughness: 0.9, metalness: 0.08 });
     regColor(roofMat.color, 0x565b62, 0x474e59);
     /* 四面香槟铝板 + 竖棱圆角(顶部保持锐利直角); 材质组序同旧 BoxGeometry: 0=px 1=nx 2=顶 4=pz 5=nz */
-    const rc = b.type === '洋房' ? 2.4 : 2.0;
+    const rc = b.type === '洋房' ? 3.4 : 3.0;
     const body = new THREE.Mesh(
       roundedWallGeometry(w, d, h, rc),
       [sideMatPx, sideMatNx, roofMat, roofMat, facadeMat, facadeMat]
@@ -359,15 +388,15 @@ export function createBuildings(scene, buildings, roomsByB){
     roofGeo.rotateX(-Math.PI/2);
     const roof = new THREE.Mesh(
       roofGeo,
-      new THREE.MeshStandardMaterial({ color: 0x8a8478, roughness: .85, metalness: .05 })
+      new THREE.MeshStandardMaterial({ color: 0x9a9a93, roughness: .85, metalness: .05 })
     );
-    regColor(roof.material.color, 0x8a8478, 0x746e62);
+    regColor(roof.material.color, 0x83837c, 0x9a9a93);
     roof.position.y = 1.4 + h;
     roof.castShadow = true;
     group.add(roof);
 
-    const paraMat = new THREE.MeshStandardMaterial({ color: 0xaaa294, roughness: .82, metalness: .06 });
-    regColor(paraMat.color, 0xaaa294, 0x8e8471);
+    const paraMat = new THREE.MeshStandardMaterial({ color: 0xbdbdb6, roughness: .82, metalness: .06 });
+    regColor(paraMat.color, 0xa7a7a0, 0xbdbdb6);
     const paraShape = roundedRectShape(w + 0.9, d + 0.9, rc);
     const paraHole = roundedRectShape(w + 0.2, d + 0.2, Math.max(rc - 0.35, 0.1));
     paraShape.holes.push(paraHole);
@@ -396,6 +425,21 @@ export function createBuildings(scene, buildings, roomsByB){
       group.add(core);
     }
 
+    /* 屋面设备(空调机组/水箱/排风): 航拍中每栋屋顶都可见的杂物 */
+    const eqMat = new THREE.MeshStandardMaterial({ color: 0x95999c, roughness: .9, metalness: .05 });
+    for(let k = 0; k < 4; k++){
+      const ew = 1.8 + ((idx + k) % 3) * 0.6;
+      const eh = 0.8 + ((idx + k) % 2) * 0.4;
+      const eq = new THREE.Mesh(new THREE.BoxGeometry(ew, eh, ew*0.8), eqMat);
+      eq.position.set(
+        ((k % 2) ? 1 : -1) * (w*0.22 + (k % 2)*1.2),
+        1.4 + h + 0.9 + eh/2,
+        ((k % 3) - 1) * d*0.2
+      );
+      eq.castShadow = true;
+      group.add(eq);
+    }
+
     const canopy = new THREE.Mesh(
       new THREE.BoxGeometry(w*0.34, 0.35, 2.6),
       new THREE.MeshStandardMaterial({ color: 0x42464c, roughness: .75, metalness: .12 })
@@ -411,7 +455,7 @@ export function createBuildings(scene, buildings, roomsByB){
     group.add(ent);
 
     const label = makeLabel(b);
-    label.position.set(b.x, 64, b.z);
+    label.position.set(b.x, 64 + SITE_LIFT, b.z);
     scene.add(label);
     labels.push(label);
 

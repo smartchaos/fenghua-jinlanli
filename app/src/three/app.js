@@ -5,7 +5,7 @@ import { regColor, regNum, applyFaders, setThemedMaps } from './theme.js';
 import { makeSky, makeSkyDome } from './sky.js';
 import { createGround } from './ground.js';
 import { createCanal } from './canal.js';
-import { createVegetation, createCanalTrees, createWilds, createBoats, createCanalLabel, createWaterPlay } from './wilds.js';
+import { createVegetation, createCanalTrees, createWilds, createBoats, createCanalLabel, createWaterPlay, createGate } from './wilds.js';
 import { createBuildings } from './buildings.js';
 import { createInteraction } from './interaction.js';
 
@@ -93,6 +93,7 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   createBoats(canalGrp);
   createCanalLabel(canalGrp);
   createWaterPlay(scene);
+  createGate(scene);
   const buildings = createBuildings(scene, B, roomsByB);
   const interaction = createInteraction(canvas, scene, camera, controls, buildings.pickMeshes,
     { onSelect, onHover, onChange: ()=>{ needsRender = true; } });

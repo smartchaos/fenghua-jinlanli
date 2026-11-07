@@ -13,7 +13,7 @@ export const SITE_PAL = {
     lblRiver:'rgba(130,165,180,.45)', lblRoad:'rgba(150,160,175,.38)'
   },
   day: {
-    base:'#7fa268', vig:'rgba(215,230,185,.5)', plot:'#90b178',
+    base:'#79a85f', vig:'rgba(215,230,185,.5)', plot:'#8fb96f',
     river:['#69a0c3','#86b5d4','#75aacb'], wave:'rgba(255,255,255,.30)',
     bank:'rgba(96,116,94,.9)', bankEdge:'rgba(255,255,255,.28)',
     road:'#3d4248', roadDash:'rgba(255,255,255,.95)',

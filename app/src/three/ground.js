@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { SITE_W, SITE_D } from './constants.js';
+import { SITE_W, SITE_D, SITE_LIFT } from './constants.js';
 import { createSite, drawMeadow } from './siteTexture.js';
 import { flatMat } from './theme.js';
 
-/* 地面三层: 小区平面纹理 / 外围旷野草甸 / 电厂河水面(桥位留洞) */
+/* 地面三层: 底层外围纹理(y=0) / 抬高平台顶的地块分片(y=SITE_LIFT) / 外围旷野草甸 + 电厂河水面 */
 export function createGround(scene, buildings, renderer){
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
@@ -14,6 +14,17 @@ export function createGround(scene, buildings, renderer){
   site.rotation.x = -Math.PI/2;
   site.receiveShadow = true;
   scene.add(site);
+
+  /* 平台顶地块分片(东侧门洞通道留在底层) */
+  const plotMeshes = siteNight.plots.map((p, i)=>{
+    const mat = new THREE.MeshStandardMaterial({ map: p.tex, roughness: 0.96, metalness: 0.02 });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.d), mat);
+    m.rotation.x = -Math.PI/2;
+    m.position.set(p.cx, SITE_LIFT + 0.02, p.cz);
+    m.receiveShadow = true;
+    scene.add(m);
+    return { mat, night: p.tex, day: siteDay.plots[i].tex };
+  });
 
   const outerNightTex = drawMeadow(false);
   const outerDayTex = drawMeadow(true);
@@ -38,6 +49,7 @@ export function createGround(scene, buildings, renderer){
 
   function setGroundMaps(day){
     siteMat.map = day ? siteDay.tex : siteNight.tex; siteMat.needsUpdate = true;
+    plotMeshes.forEach(p=>{ p.mat.map = day ? p.day : p.night; p.mat.needsUpdate = true; });
     outer.material.map = day ? outerDayTex : outerNightTex; outer.material.needsUpdate = true;
   }
 
