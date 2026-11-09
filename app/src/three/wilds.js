@@ -224,7 +224,7 @@ export function createWaterPlay(scene){
   );
   shore.rotation.x = Math.PI/2;
   shore.scale.set(1.08, 0.62, 1);
-  shore.position.y = 0.05;
+  shore.position.y = 0.20;
   group.add(shore);
 
   /* 水面用纯色贴图材质，避免强日光下被压成白色 */
@@ -234,7 +234,7 @@ export function createWaterPlay(scene){
   );
   water.rotation.x = Math.PI/2;
   water.scale.set(1, 0.574, 1);
-  water.position.y = 0.12;
+  water.position.y = 0.28;
   group.add(water);
 
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0xb8a57d, roughness: .9 });

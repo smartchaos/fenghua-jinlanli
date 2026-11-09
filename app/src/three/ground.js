@@ -20,7 +20,7 @@ export function createGround(scene, buildings, renderer){
     const mat = new THREE.MeshStandardMaterial({ map: p.tex, roughness: 0.96, metalness: 0.02 });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.d), mat);
     m.rotation.x = -Math.PI/2;
-    m.position.set(p.cx, SITE_LIFT + 0.02, p.cz);
+    m.position.set(p.cx, SITE_LIFT + 0.10, p.cz);
     m.receiveShadow = true;
     scene.add(m);
     return { mat, night: p.tex, day: siteDay.plots[i].tex };
@@ -37,7 +37,7 @@ export function createGround(scene, buildings, renderer){
   scene.add(outer);
 
   const riverMat = waterMat(0x0a2e44, 0x4e8099);
-  /* 电厂河在东路跨河桥处留洞(x 100..120): 水面 y0.06 高于桥面顶 y0.03, 不拆会被水盖住 */
+  /* 电厂河在东路跨河桥处留洞(x 100..120): 水面 y0.06 与桥面顶齐平, 靠留洞避免叠层 */
   const riverGrp = new THREE.Group();
   [[-135, 470], [360, 480]].forEach(([cx, w])=>{
     const seg = new THREE.Mesh(new THREE.PlaneGeometry(w, 40), riverMat);

@@ -36,6 +36,23 @@ PROBE = r"""async () => {
   c.group.traverse(o => { if(o.isMesh && o.geometry && o.geometry.type === 'PlaneGeometry')
     planeYs.push(Math.round(o.position.y * 100) / 100); });
 
+  /* 建筑占地包围盒不得与实体道路/河道相交；坐标取自场景实际几何 */
+  const bands = [
+    [-440, -230, -900, 900],   // 运河 + 驳岸 + 滨河绿带
+    [-900, 900, -185, -138],   // 电厂河
+    [-900, 900, 138, 162],     // 南路 / 朱家坝路 + 斜拉桥桥面
+    [98, 122, -900, 900],      // 顾扬路 / 东路
+    [-750, 750, -308, -292],   // 高架桥面
+  ];
+  const roadWaterHits = s.instances.filter(i => bands.some(b =>
+    i.x - i.w/2 < b[1] && i.x + i.w/2 > b[0] &&
+    i.z - i.d/2 < b[3] && i.z + i.d/2 > b[2])).length;
+
+  const west = s.instances.filter(i => i.group === 'west');
+  const westInBox = west.every(i => i.x > -235 && i.x < -145 && i.z > -125 && i.z < 125);
+  const westIntruders = s.instances.filter(i => i.group !== 'west' &&
+    i.x > -235 && i.x < -145 && i.z > -125 && i.z < 125).length;
+
   const m = window.__MODEL;
   const firstMesh = c.group.children.find(o => o.isInstancedMesh);
   m.applyTheme(true, true);
@@ -76,6 +93,10 @@ PROBE = r"""async () => {
     forbiddenYs: planeYs.filter(y => [0, 0.02, 0.06, 1.8, 3.0].includes(y)),
     drawDelta: delta,
     idleRenders: idle,
+    roadWaterHits,
+    westCount: west.length,
+    westInBox,
+    westIntruders,
   };
 }"""
 
@@ -114,6 +135,10 @@ def main():
         "无既有共面 y 值": result.get("forbiddenYs") == [],
         "draw call 增量 ≤20": result.get("drawDelta", 999) <= 20,
         "闲置零渲染": result.get("idleRenders", 999) == 0,
+        "西侧组团至少 8 栋": result.get("westCount", 0) >= 8,
+        "西侧组团都在地块内": result.get("westInBox") is True,
+        "西侧地块无其他楼群": result.get("westIntruders", 999) == 0,
+        "建筑不压道路/河道": result.get("roadWaterHits", 999) == 0,
     }
     for name, ok in checks.items():
         print(("PASS " if ok else "FAIL ") + name)

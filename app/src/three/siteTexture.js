@@ -139,7 +139,7 @@ function drawPlot(g, P, M, rects, R, treeSpots, spotKeys){
     const key = x.toFixed(1) + ',' + z.toFixed(1);
     if(x >= R.x0 && x <= R.x1 && z >= R.z0 && z <= R.z1 && !spotKeys.has(key)){
       spotKeys.add(key);
-      treeSpots.push({ x, z, s, kind, y: SITE_LIFT });
+      treeSpots.push({ x, z, s, kind, y: SITE_LIFT + 0.10 });
     }
   }
   /* 沿南/北围墙列植行道树 */

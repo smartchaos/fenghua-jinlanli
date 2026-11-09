@@ -7,6 +7,7 @@ const CITY = {
   cell: 46,
   rings: [[250, 450, 0.8], [450, 700, 0.62], [700, 900, 0.35]],
   silhouette: [900, 1300],
+  west: { x0: -230, x1: -150, z0: -120, z1: 120, cols: 2, rows: 5 },
   seed: 20261109,
 };
 
@@ -15,9 +16,26 @@ const HILLS = [[330,-350,120],[450,150,140],[300,470,130],
 const MTNS = [[-805,-575,260],[288,-874,300],[805,-483,240],[897,230,260],
               [575,782,280],[-518,874,300],[-909,345,260]];
 
+/* 实体道路/河道的占地范围，取自 canal.js / ground.js 的实际几何；建筑按包围盒避让 */
+const ROAD_WATER_BANDS = [
+  [-440, -230, -900, 900],
+  [-900, 900, -185, -138],
+  [-900, 900, 138, 162],
+  [98, 122, -900, 900],
+  [-750, 750, -308, -292],
+];
+
+function hitsRoadOrWater(x, z, w, d){
+  return ROAD_WATER_BANDS.some(b =>
+    x - w/2 < b[1] && x + w/2 > b[0] &&
+    z - d/2 < b[3] && z + d/2 > b[2]);
+}
+
 /* 禁建区：小区/运河/两条主干道/电厂河/丘陵/远山 */
 export function isForbidden(x, z){
   if(Math.abs(x) < 140 && Math.abs(z) < 210) return true;
+  const w = CITY.west;
+  if(x > w.x0 - 5 && x < w.x1 + 5 && z > w.z0 - 5 && z < w.z1 + 5) return true;
   if(x > -460 && x < -240) return true;
   if(Math.abs(x - RX) < 25) return true;
   if(Math.abs(z - RZ) < 25) return true;
@@ -76,11 +94,28 @@ function generate(rnd){
         else if(roll < .30){ type = 'tower'; w = 18 + rnd()*8; d = 16 + rnd()*8; h = 34 + rnd()*24; }
         else if(roll < .48){ type = 'podium'; w = 30 + rnd()*18; d = 22 + rnd()*14; h = 8 + rnd()*6; }
         else { type = 'slab'; w = 14 + rnd()*16; d = 12 + rnd()*12; h = 16 + rnd()*20; }
+        if(hitsRoadOrWater(x, z, w, d)){ rejected++; continue; }
         instances.push({ x, z, type, w, d, h });
       }
     }
   }
   return { instances, rejected };
+}
+
+/* 西侧独立住宅组团：运河东岸以东、本小区以西，参考图里成排的点式高层 */
+function makeWestResidential(rnd){
+  const list = [];
+  for(let col = 0; col < CITY.west.cols; col++){
+    for(let row = 0; row < CITY.west.rows; row++){
+      const x = -212 + col * 42 + (rnd() - .5) * 3;
+      const z = -100 + row * 50 + (rnd() - .5) * 3;
+      const bw = 18 + rnd() * 5, bd = 16 + rnd() * 4, bh = 32 + rnd() * 16;
+      if(hitsRoadOrWater(x, z, bw, bd)) continue;
+      list.push({ x, z, type: row % 2 === 0 ? 'tower' : 'slab',
+                  w: bw, d: bd, h: bh, group: 'west' });
+    }
+  }
+  return list;
 }
 
 function makeRoadsMesh(){
@@ -170,7 +205,9 @@ function makeSilhouette(rnd){
     const r = CITY.silhouette[0] + rnd() * (CITY.silhouette[1] - CITY.silhouette[0]);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if(isForbidden(x, z)){ skipped++; continue; }
-    list.push({ x, z, type: 'silhouette', w: 12 + rnd()*16, d: 12 + rnd()*16, h: 20 + rnd()*30 });
+    const bw = 12 + rnd()*16, bd = 12 + rnd()*16, bh = 20 + rnd()*30;
+    if(hitsRoadOrWater(x, z, bw, bd)){ skipped++; continue; }
+    list.push({ x, z, type: 'silhouette', w: bw, d: bd, h: bh });
   }
   const mat = new THREE.MeshStandardMaterial({ color: 0x5f6b78, roughness: 1 });
   regColor(mat.color, 0x1d2632, 0x8b98a6);
@@ -209,7 +246,8 @@ export function createCityscape(scene){
   const rnd = mulberry32(CITY.seed);
   const { instances, rejected } = generate(rnd);
   const sil = makeSilhouette(rnd);
-  const all = instances.concat(sil.list);
+  const west = makeWestResidential(rnd);
+  const all = instances.concat(sil.list, west);
 
   const byType = { slab: 0, tower: 0, podium: 0, landmark: 0, silhouette: 0 };
   all.forEach(it => { byType[it.type]++; });

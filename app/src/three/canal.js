@@ -9,7 +9,7 @@ export function createCanal(scene, renderer){
 
   const canalMat = waterMat(0x0a2e44, 0x4e8099);
   const canal = new THREE.Mesh(new THREE.PlaneGeometry(170, 1600), canalMat);
-  canal.rotation.x = -Math.PI/2; canal.position.set(-350, 0.03, 0);
+  canal.rotation.x = -Math.PI/2; canal.position.set(-350, -0.08, 0);
   canalGrp.add(canal);
 
   /* 驳岸: 东岸在电厂河口 (-184..-138) 与南路桥位 (138..162) 留缺口, 西岸只留桥位缺口。
@@ -85,7 +85,7 @@ export function createCanal(scene, renderer){
   /* 东路: 南北延伸至远方, 止于跨河桥两端(桥面承接), 避免与桥面叠层 */
   [[-495, 610], [334, 932]].forEach(([cz, len])=>{
     const r = new THREE.Mesh(roadGeo(len), regRoadTex(roadTexMat(len)));
-    r.position.set(RX, 0.015, cz);
+    r.position.set(RX, 0.06, cz);
     canalGrp.add(r);
   });
   { // 东路跨河桥: 平直桥面与路面齐平延续, 两侧白色护栏
@@ -97,7 +97,7 @@ export function createCanal(scene, renderer){
       new THREE.BoxGeometry(20, 0.9, SPAN),
       [bridgeW, bridgeW, regRoadTex(roadTexMat(SPAN)), bridgeW, bridgeW, bridgeW]
     );
-    deck.position.set(RX, -0.42, CZR);          // 顶面 y0.03, 与路面齐平
+    deck.position.set(RX, -0.39, CZR);          // 顶面 y0.06, 与路面齐平
     canalGrp.add(deck);
     [-9.7, 9.7].forEach(xoff=>{
       const rail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.15, SPAN), railWhite);
@@ -108,7 +108,7 @@ export function createCanal(scene, renderer){
   { // 南路: 斜拉桥东端 → 穿过东路, 交叉口由无缝补丁收口
     const len = 372;
     const r = new THREE.Mesh(roadGeoEW(len), regRoadTex(roadTexMat(len)));
-    r.position.set(-66, 0.025, RZ);
+    r.position.set(-66, 0.12, RZ);
     canalGrp.add(r);
   }
   { // 交叉口无缝补丁: 顶面贴图画入东路(主路)贯穿中线(直行优先), 南路(支路)止于路口西缘
@@ -126,9 +126,9 @@ export function createCanal(scene, renderer){
     const topMat = new THREE.MeshBasicMaterial({ map: draw(false) });
     topMat.userData.nightTex = draw(false); topMat.userData.dayTex = draw(true);
     const asphalt = flatMat(0x101317, 0x3d4248);
-    const patch = new THREE.Mesh(new THREE.BoxGeometry(20.4, 0.12, 20.4),
+    const patch = new THREE.Mesh(new THREE.BoxGeometry(20.4, 0.24, 20.4),
       [asphalt, asphalt, regRoadTex(topMat), asphalt, asphalt, asphalt]);
-    patch.position.set(RX, 0.035 - 0.06, RZ);
+    patch.position.set(RX, 0.06, RZ);
     canalGrp.add(patch);
   }
   /* 红绿灯（南路×东路交叉口, 对角两台） */
