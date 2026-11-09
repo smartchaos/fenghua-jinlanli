@@ -7,25 +7,26 @@ export function makeSky(day){
   const g = cv.getContext('2d');
   const grd = g.createLinearGradient(0, 0, 0, 1024);
   if(day){
-    grd.addColorStop(0,'#2e6cc4'); grd.addColorStop(.45,'#6aa6e2');
-    grd.addColorStop(.75,'#b9dcf2'); grd.addColorStop(1,'#eaf5fc');
+    grd.addColorStop(0,'#3f74b8'); grd.addColorStop(.45,'#7fa9d8');
+    grd.addColorStop(.78,'#bcd4e6'); grd.addColorStop(.94,'#dee0d8');
+    grd.addColorStop(1,'#f0e2c8');
   }else{
     grd.addColorStop(0,'#01030a'); grd.addColorStop(.55,'#071019'); grd.addColorStop(1,'#122036');
   }
   g.fillStyle = grd; g.fillRect(0, 0, 2048, 1024);
   const rnd = mulberry32(day ? 20261105 : 20261104);
   if(day){
-    const sx = 1560, sy = 210;
+    const sx = 1560, sy = 380;
     const sg = g.createRadialGradient(sx, sy, 10, sx, sy, 360);
     sg.addColorStop(0,'rgba(255,252,235,.95)'); sg.addColorStop(.22,'rgba(255,246,205,.5)'); sg.addColorStop(1,'rgba(255,246,205,0)');
     g.fillStyle = sg; g.fillRect(0, 0, 2048, 1024);
     g.fillStyle = '#fffbe8'; g.beginPath(); g.arc(sx, sy, 34, 0, 7); g.fill();
-    for(let i = 0; i < 24; i++){
-      const cx = rnd()*2048, cy = 140+rnd()*600, s = 26+rnd()*64;
+    for(let i = 0; i < 18; i++){
+      const cx = rnd()*2048, cy = 140+rnd()*600, s = 30+rnd()*58;
       const puffs = 5 + Math.floor(rnd()*6);
       for(let j = 0; j < puffs; j++){
         const ox = (rnd()-.5)*s*3.4, oy = (rnd()-.5)*s*.8, r = s*(.5+rnd()*.65);
-        const a = .22 + rnd()*.4;
+        const a = .10 + rnd()*.20;
         const cg = g.createRadialGradient(cx+ox, cy+oy, 0, cx+ox, cy+oy, r);
         cg.addColorStop(0,`rgba(255,255,255,${a})`); cg.addColorStop(1,'rgba(255,255,255,0)');
         g.fillStyle = cg; g.beginPath(); g.arc(cx+ox, cy+oy, r, 0, 7); g.fill();

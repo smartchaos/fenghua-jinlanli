@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { regColor } from './theme.js';
+import { regColor, grainOverlay } from './theme.js';
 import { heightOf } from '../data/index.js';
 import { SITE_LIFT } from './constants.js';
 
@@ -99,6 +99,11 @@ function makeFacade(b, day, roomsByB){
         ? (day ? 'rgba(72,62,46,.5)' : 'rgba(70,64,55,.42)')
         : (day ? 'rgba(72,78,84,.55)' : 'rgba(58,64,70,.5)');
       g.fillRect(x-3, y-3, ww+6, hh+6);
+      /* 窗洞进深: 上/左内阴影与下沿反光 */
+      g.fillStyle = day ? 'rgba(24,30,34,.32)' : 'rgba(0,0,0,.48)';
+      g.fillRect(x, y, ww, 3); g.fillRect(x, y, 3, hh);
+      g.fillStyle = day ? 'rgba(255,255,255,.26)' : 'rgba(190,210,235,.10)';
+      g.fillRect(x, y+hh-2, ww, 2);
       if(on){
         const wg = g.createLinearGradient(0, y, 0, y+hh);
         if(day){ wg.addColorStop(0,'#f8c766'); wg.addColorStop(.5,'#f0ab45'); wg.addColorStop(1,'#dd912e'); }
@@ -109,6 +114,12 @@ function makeFacade(b, day, roomsByB){
         g.fillStyle = day ? '#5c7284' : '#141d27'; g.fillRect(x, y, ww, hh);
         g.fillStyle = day ? 'rgba(255,255,255,.4)' : 'rgba(120,160,210,.07)'; g.fillRect(x, y, ww, hh*0.2);
       }
+      /* 玻璃斜向天光反射: 让窗面不再是纯色块 */
+      const sg = g.createLinearGradient(x, y, x+ww, y+hh);
+      sg.addColorStop(0, 'rgba(255,255,255,0)');
+      sg.addColorStop(.42, day ? 'rgba(226,238,248,.20)' : 'rgba(180,205,235,.10)');
+      sg.addColorStop(.58, 'rgba(255,255,255,0)');
+      g.fillStyle = sg; g.fillRect(x, y, ww, hh);
       g.fillStyle = day ? (hi ? 'rgba(48,42,32,.6)' : 'rgba(58,64,70,.62)') : (hi ? 'rgba(60,55,48,.5)' : 'rgba(40,46,52,.55)');
       g.fillRect(x+ww/2-1, y, 2, hh);
       g.fillStyle = day ? (hi ? 'rgba(66,56,42,.45)' : 'rgba(150,155,160,.6)') : (hi ? 'rgba(80,72,62,.30)' : 'rgba(120,126,132,.35)');
@@ -123,6 +134,7 @@ function makeFacade(b, day, roomsByB){
       }
     });
   }
+  grainOverlay(g, 1024, 1024, 0.55);
   const map = new THREE.CanvasTexture(cv);
   map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
   const glow = new THREE.CanvasTexture(em);
@@ -204,6 +216,7 @@ function makeSide(b, day, roomsByB, endCol){
       e.fillRect(x-6, y-6, ww+12, hh+12);
     }
   }
+  grainOverlay(g, W, 1024, 0.55);
   const map = new THREE.CanvasTexture(cv);
   map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
   const glow = new THREE.CanvasTexture(em);

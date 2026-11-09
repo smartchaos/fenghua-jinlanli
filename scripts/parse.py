@@ -11,8 +11,8 @@ RAW = ROOT / "data" / "raw"
 DATA = ROOT / "data"
 
 TOTAL_HOUSEHOLDS = 478
-SNAPSHOT_DATE = "2026-11-06"   # 数据口径日期
-SNAPSHOT_GROUP_SIZE = 303      # 群快照人数；快照后补录成员在此之上累加
+SNAPSHOT_DATE = "2026-11-09"   # 数据口径日期
+SNAPSHOT_GROUP_SIZE = 310      # 群快照人数；快照后补录成员在此之上累加
 MANUAL_FILE = RAW / "manual-members.csv"
 OVERRIDES_FILE = RAW / "member-overrides.json"
 
@@ -248,12 +248,10 @@ def build_rooms():
                 for fl in range(1, spec["floors"] + 1):
                     for no in (1, 2):
                         # 洋房 1F 只有一单元的两户，2F-7F 每单元两户
-                        if fl == 1 and u > 1:
+                        # 12# 的 1F 两户属 2 单元：西侧 col 2/3 即 2 单元列位，群昵称 12-2-102 佐证
+                        if fl == 1 and u != (2 if b == 12 else 1):
                             continue
                         col = (u - 1) * 2 + no - 1
-                        # 12# 1F 两户实际在西侧（102 最西，靠 col 3 = -x 端），不在默认的东端 col 0/1
-                        if b == 12 and fl == 1:
-                            col = no + 1  # 101→2, 102→3
                         rooms.append({"key": f"{b}-{u}-{fl}{no:02d}", "b": b, "u": u,
                                       "f": fl, "no": no, "col": col})
         else:

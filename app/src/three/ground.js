@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { SITE_W, SITE_D, SITE_LIFT } from './constants.js';
 import { createSite, drawMeadow } from './siteTexture.js';
-import { flatMat } from './theme.js';
+import { waterMat } from './theme.js';
 
 /* 地面三层: 底层外围纹理(y=0) / 抬高平台顶的地块分片(y=SITE_LIFT) / 外围旷野草甸 + 电厂河水面 */
 export function createGround(scene, buildings, renderer){
@@ -36,7 +36,7 @@ export function createGround(scene, buildings, renderer){
   outer.position.y = -0.35;
   scene.add(outer);
 
-  const riverMat = flatMat(0x0a2e44, 0x6aa3c8);
+  const riverMat = waterMat(0x0a2e44, 0x4e8099);
   /* 电厂河在东路跨河桥处留洞(x 100..120): 水面 y0.06 高于桥面顶 y0.03, 不拆会被水盖住 */
   const riverGrp = new THREE.Group();
   [[-135, 470], [360, 480]].forEach(([cx, w])=>{

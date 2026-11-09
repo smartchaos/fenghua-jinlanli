@@ -18,21 +18,23 @@ export function createVegetation(scene, treeSpots){
     trunk.castShadow = true;
     group.add(trunk);
     const ki = kind > .66 ? 0 : kind > .33 ? 1 : 2;
-    const colors = [[0x143b24, 0x1d4a2c], [0x163f25, 0x235a30], [0x12321f, 0x1b4627]][ki];
-    const days = [[0x2f7a44, 0x3c9152], [0x35834a, 0x46a05c], [0x2b6e3d, 0x3b8a4e]][ki];
-    /* 阔叶树冠(香樟/榉树): 2~3 团低多边形球体, 取代针叶锥形 */
+    const colors = [[0x0a2314, 0x102d1b], [0x0c2717, 0x12311d], [0x091f12, 0x0e2918]][ki];
+    const days = [[0x28432a, 0x385438], [0x2e4b30, 0x3d5a3c], [0x243c27, 0x334c32]][ki];
+    /* 阔叶树冠(香樟/榉树): 3 团不等大的平滑球体, 树形逐棵微扰 */
     const blob = (rr, sx, sy, sz, px, py, pz, ci)=>{
       const m = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(rr, 1),
-        new THREE.MeshStandardMaterial({ color: colors[ci], roughness: 0.92, flatShading: true })
+        new THREE.IcosahedronGeometry(rr, 2),
+        new THREE.MeshStandardMaterial({ color: colors[ci], roughness: 0.94 })
       );
       regColor(m.material.color, colors[ci], days[ci]);
       m.scale.set(sx, sy, sz); m.position.set(px, py, pz);
       m.castShadow = true; group.add(m);
     };
-    blob(2.7, 1.15, 0.92, 1.05, 0, 4.3, 0, 0);
-    blob(1.9, 1.0, 0.9, 1.0, 1.5, 5.2, 0.6, 1);
-    blob(1.6, 1.0, 0.9, 1.0, -1.4, 4.9, -0.9, 1);
+    group.rotation.y = kind * Math.PI * 2;
+    const wobble = n => 1 + (kind - .5) * n;
+    blob(2.7, 1.15*wobble(.18), 0.92, 1.05, 0, 4.3, 0, 0);
+    blob(1.9, 1.0, 0.9, 1.0, 1.5*wobble(.3), 5.2, 0.6, 1);
+    blob(1.6, 1.0, 0.9, 1.0, -1.4*wobble(.3), 4.9, -0.9, 1);
     return group;
   }
   treeSpots.forEach(p=>scene.add(makeTree(p.x, p.z, p.s, p.kind, p.y)));
@@ -45,9 +47,9 @@ export function createCanalTrees(canalGrp){
   const cwTrunk = new THREE.MeshStandardMaterial({ color: 0x4b3321, roughness: 0.95 });
   regColor(cwTrunk.color, 0x4b3321, 0x7a5636);
   const cwLeafA = new THREE.MeshStandardMaterial({ color: 0x143b24, roughness: 0.92 });
-  regColor(cwLeafA.color, 0x143b24, 0x2f7a44);
+  regColor(cwLeafA.color, 0x143b24, 0x28432a);
   const cwLeafB = new THREE.MeshStandardMaterial({ color: 0x163f25, roughness: 0.92 });
-  regColor(cwLeafB.color, 0x163f25, 0x35834a);
+  regColor(cwLeafB.color, 0x163f25, 0x2e4b30);
   function cwTree(x, z, s){
     const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s);
     const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 2.2, 5), cwTrunk); tr.position.y = 1.1; g.add(tr);
@@ -72,7 +74,7 @@ export function createWilds(canalGrp){
     [-95,590,150,30],[-660,-640,170,36],[560,480,130,26]
   ];
   const hillMat = new THREE.MeshStandardMaterial({ color: 0x1b2f22, roughness: 1, flatShading: true });
-  regColor(hillMat.color, 0x1b2f22, 0x77b058);
+  regColor(hillMat.color, 0x1b2f22, 0x6e8a5c);
   const hillGeo = new THREE.SphereGeometry(1, 20, 12);
   hillDefs.forEach(([x, z, r, h])=>{
     const m = new THREE.Mesh(hillGeo, hillMat);
@@ -97,11 +99,11 @@ export function createWilds(canalGrp){
   const bwTrunk = new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 1, flatShading: true });
   regColor(bwTrunk.color, 0x2a2118, 0x8a6b48);
   const bwLeaf1 = new THREE.MeshStandardMaterial({ color: 0x14301e, roughness: 1, flatShading: true });
-  regColor(bwLeaf1.color, 0x14301e, 0x5faf52);
+  regColor(bwLeaf1.color, 0x14301e, 0x3d5a3c);
   const bwLeaf2 = new THREE.MeshStandardMaterial({ color: 0x17351f, roughness: 1, flatShading: true });
-  regColor(bwLeaf2.color, 0x17351f, 0x6cbf5c);
+  regColor(bwLeaf2.color, 0x17351f, 0x3d5a3c);
   const bwLeaf3 = new THREE.MeshStandardMaterial({ color: 0x112a19, roughness: 1, flatShading: true });
-  regColor(bwLeaf3.color, 0x112a19, 0x4f9e4a);
+  regColor(bwLeaf3.color, 0x112a19, 0x334c32);
   const bwTrunkGeo = new THREE.CylinderGeometry(0.35, 0.55, 3.2, 5);
   const bwBlobGeo = new THREE.SphereGeometry(2.4, 7, 5);
   const bwRnd = mulberry32(20261107);
@@ -428,14 +430,6 @@ export function createGate(scene){
   drop.rotation.set(0.15, Math.PI/2, -0.3);
   drop.castShadow = true; grp.add(drop);
 
-  /* 广场标志性雕塑(大门外广场, 避开入口中轴) */
-  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 4.0, 0.6, 28), stoneMat);
-  plinth.position.set(77, 0.45, 24); plinth.castShadow = true; plinth.receiveShadow = true; grp.add(plinth);
-  const sculpt = new THREE.Mesh(new THREE.TorusGeometry(2.3, 0.34, 12, 40, Math.PI*1.45), metalMat);
-  sculpt.position.set(77, 3.1, 24);
-  sculpt.rotation.set(0.35, Math.PI/2, 0.35);
-  sculpt.castShadow = true; grp.add(sculpt);
-
   /* 造型松(拱龛前) + 棕榈(两端) + 绿篱柱 */
   const pineMat = new THREE.MeshStandardMaterial({ color: 0x275c33, roughness: .92, flatShading: true });
   regColor(pineMat.color, 0x14381f, 0x2f6b3f);
@@ -452,7 +446,7 @@ export function createGate(scene){
   pine(67.2, 10.4); pine(67.2, 19.6);
 
   const leafMat = new THREE.MeshStandardMaterial({ color: 0x2c6b3f, roughness: .9, flatShading: true });
-  regColor(leafMat.color, 0x173d24, 0x35834a);
+  regColor(leafMat.color, 0x173d24, 0x2e4b30);
   function palm(x, z){
     const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.36, 5.6, 7), trunkMat);
     tr.position.set(x, 2.8, z); tr.castShadow = true; grp.add(tr);

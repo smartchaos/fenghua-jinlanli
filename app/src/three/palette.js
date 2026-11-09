@@ -7,21 +7,21 @@ export const SITE_PAL = {
     road:'#101317', roadDash:'rgba(228,235,242,.6)',
     path:'#1b2629', pathDash:'rgba(210,200,180,.10)',
     belt:'rgba(22,44,34,.55)',
-    treeLo:22, treeSpan:22, treeFill:s=>`rgba(${s},${s+22},${s+12},.55)`, treeHi:'rgba(120,170,130,.07)',
+    treeLo:22, treeSpan:22,
     flower:{soil:'#0d1811', edge:'rgba(64,76,64,.45)', green:'#15261a', greenHi:'#1c3323',
       red:'#571f28', orange:'#59311c', yellow:'#57491c', pink:'#572e3e', white:'#3e3e3c'},
     lblRiver:'rgba(130,165,180,.45)', lblRoad:'rgba(150,160,175,.38)'
   },
   day: {
-    base:'#79a85f', vig:'rgba(215,230,185,.5)', plot:'#8fb96f',
-    river:['#69a0c3','#86b5d4','#75aacb'], wave:'rgba(255,255,255,.30)',
-    bank:'rgba(96,116,94,.9)', bankEdge:'rgba(255,255,255,.28)',
-    road:'#3d4248', roadDash:'rgba(255,255,255,.95)',
-    path:'#e3ded1', pathDash:'rgba(130,120,105,.28)',
-    belt:'rgba(76,116,62,.5)',
-    treeLo:64, treeSpan:30, treeFill:s=>`rgba(${s},${s+34},${s+18},.5)`, treeHi:'rgba(235,245,220,.15)',
-    flower:{soil:'#41622f', edge:'rgba(214,218,192,.85)', green:'#4e7a37', greenHi:'#689a4b',
-      red:'#cf4453', orange:'#dd7a3a', yellow:'#dcb63c', pink:'#d87f9e', white:'#edede7'},
-    lblRiver:'rgba(45,70,88,.55)', lblRoad:'rgba(70,82,95,.5)'
+    base:'#6d8b5c', vig:'rgba(196,208,168,.32)', plot:'#7f9e68',
+    river:['#5d8fa8','#7fa9bd','#6395ad'], wave:'rgba(235,245,250,.22)',
+    bank:'rgba(78,88,72,.9)', bankEdge:'rgba(240,244,236,.24)',
+    road:'#3a3b3c', roadDash:'rgba(238,236,225,.82)',
+    path:'#cfc9b8', pathDash:'rgba(120,112,98,.24)',
+    belt:'rgba(70,94,58,.5)',
+    treeLo:64, treeSpan:30,
+    flower:{soil:'#3f5a31', edge:'rgba(206,208,188,.8)', green:'#507144', greenHi:'#6d8b55',
+      red:'#b85457', orange:'#c47a46', yellow:'#c6a952', pink:'#bd8194', white:'#dddcd2'},
+    lblRiver:'rgba(40,64,78,.55)', lblRoad:'rgba(64,74,84,.5)'
   }
 };

@@ -8,12 +8,38 @@ import { createCanal } from './canal.js';
 import { createVegetation, createCanalTrees, createWilds, createBoats, createCanalLabel, createWaterPlay, createGate } from './wilds.js';
 import { createBuildings } from './buildings.js';
 import { createInteraction } from './interaction.js';
+import { createCityscape } from './cityscape.js';
 
 /* 保持 r128 时代的色彩解析：Color.setHex 不做 sRGB→线性转换，
  * 让既有配色/贴图校准值在升级后仍然成立。 */
 THREE.ColorManagement.enabled = false;
 
 export const THEME_KEY = 'spax-theme-v2';
+
+/* 程序化环境贴图: 天空/地面/暖阳的等距柱状渐变, 供玻璃与水面产生真实反射 */
+function makeEnvironment(renderer){
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
+  const g = cv.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, 256);
+  grd.addColorStop(0, '#7ea6d0');
+  grd.addColorStop(.45, '#cfdfeb');
+  grd.addColorStop(.5, '#e9e2cc');
+  grd.addColorStop(.54, '#8e9c7c');
+  grd.addColorStop(1, '#414b39');
+  g.fillStyle = grd; g.fillRect(0, 0, 512, 256);
+  const glow = g.createRadialGradient(340, 66, 4, 340, 66, 118);
+  glow.addColorStop(0, 'rgba(255,246,214,.95)');
+  glow.addColorStop(.35, 'rgba(255,232,180,.42)');
+  glow.addColorStop(1, 'rgba(255,232,180,0)');
+  g.fillStyle = glow; g.fillRect(0, 0, 512, 256);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const env = pmrem.fromEquirectangular(tex).texture;
+  pmrem.dispose(); tex.dispose();
+  return env;
+}
 
 /* 场景总装: renderer/camera/lights/sky/ground/canal/wilds/buildings/interaction。
  * 返回命令式 API 供 React 调用; 事件经 callbacks 回传 React。 */
@@ -33,9 +59,11 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
 
   regColor(scene.background, 0x071019, 0xbcd6ea);
   regColor(scene.fog.color, 0x071019, 0xc2d9ea);
-  regNum(scene.fog, 'near', 450, 800);
-  regNum(scene.fog, 'far', 900, 1600);
-  regNum(renderer, 'toneMappingExposure', 1.08, 1.1);
+  regNum(scene.fog, 'near', 450, 560);
+  regNum(scene.fog, 'far', 900, 1350);
+  regNum(renderer, 'toneMappingExposure', 1.08, 0.9);
+  scene.environment = makeEnvironment(renderer);
+  regNum(scene, 'environmentIntensity', 0.03, 0.4);
 
   const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 1, 2000);
   const HOME_POS = new THREE.Vector3(-190, 265, 340);
@@ -57,18 +85,19 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   const hemi = new THREE.HemisphereLight(0x9db3d6, 0x0a0e15, 0.62*PI);
   regColor(hemi.color, 0x9db3d6, 0xd8e6f5);
   regColor(hemi.groundColor, 0x0a0e15, 0x9aa78c);
-  regNum(hemi, 'intensity', 0.62*PI, 0.85*PI);
+  regNum(hemi, 'intensity', 0.62*PI, 0.36*PI);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffe2c0, 1.45*PI);
-  regColor(sun.color, 0xffe2c0, 0xfff6e6);
-  regNum(sun, 'intensity', 1.45*PI, 1.5*PI);
-  sun.position.set(-110, 190, 120);
+  regColor(sun.color, 0xffe2c0, 0xffd9a8);
+  regNum(sun, 'intensity', 1.45*PI, 1.05*PI);
+  sun.position.set(-160, 108, 135);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -200; sun.shadow.camera.right = 200;
-  sun.shadow.camera.top = 200; sun.shadow.camera.bottom = -200;
-  sun.shadow.camera.near = 10; sun.shadow.camera.far = 520;
+  sun.shadow.camera.left = -230; sun.shadow.camera.right = 230;
+  sun.shadow.camera.top = 230; sun.shadow.camera.bottom = -230;
+  sun.shadow.camera.near = 10; sun.shadow.camera.far = 680;
   sun.shadow.bias = -0.0006;
+  sun.shadow.normalBias = 0.025;
   scene.add(sun);
   const rim = new THREE.DirectionalLight(0x6a8dff, 0.34*PI);
   regColor(rim.color, 0x6a8dff, 0xaac8ee);
@@ -90,6 +119,7 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   createVegetation(scene, ground.treeSpots);
   createCanalTrees(canalGrp);
   createWilds(canalGrp);
+  const cityscape = createCityscape(scene);
   createBoats(canalGrp);
   createCanalLabel(canalGrp);
   createWaterPlay(scene);
@@ -185,7 +215,7 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
 
   const api = {
     D, openPanel: openPanelById, closePanel, resetView, setTour, applyTheme, dispose,
-    scene, canalGrp, renderer, camera, controls
+    scene, canalGrp, renderer, camera, controls, cityscape
   };
   window.__MODEL = api;
   return api;

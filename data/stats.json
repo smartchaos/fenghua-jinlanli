@@ -1,17 +1,17 @@
 {
   "groupName": "风华锦澜里业主群",
-  "groupSize": 303,
-  "captured": 306,
-  "identifiedMembers": 303,
+  "groupSize": 310,
+  "captured": 313,
+  "identifiedMembers": 310,
   "unresolvedMembers": 0,
-  "households": 187,
-  "confirmedHouseholds": 187,
+  "households": 191,
+  "confirmedHouseholds": 191,
   "inferredHouseholds": 0,
   "totalHouseholds": 478,
-  "coverage": 0.3912,
+  "coverage": 0.3996,
   "memberDistribution": {
-    "1": 73,
-    "2": 109,
+    "1": 74,
+    "2": 112,
     "3": 5
   },
   "buildings": [
@@ -52,8 +52,8 @@
       "units": 3,
       "stacks": 1,
       "total": 45,
-      "joined": 17,
-      "rate": 0.3778,
+      "joined": 18,
+      "rate": 0.4,
       "x": 0,
       "z": 57.5
     },
@@ -122,8 +122,8 @@
       "units": 3,
       "stacks": 1,
       "total": 45,
-      "joined": 14,
-      "rate": 0.3111,
+      "joined": 15,
+      "rate": 0.3333,
       "x": 0,
       "z": -28
     },
@@ -150,8 +150,8 @@
       "units": 3,
       "stacks": 1,
       "total": 36,
-      "joined": 13,
-      "rate": 0.3611,
+      "joined": 14,
+      "rate": 0.3889,
       "x": -46.8,
       "z": -49
     },
@@ -178,8 +178,8 @@
       "units": 4,
       "stacks": 2,
       "total": 26,
-      "joined": 5,
-      "rate": 0.1923,
+      "joined": 6,
+      "rate": 0.2308,
       "x": -46.8,
       "z": -88
     }
@@ -225,7 +225,7 @@
       "1": 0,
       "2": 2,
       "3": 1,
-      "4": 0,
+      "4": 1,
       "5": 1,
       "6": 1,
       "7": 2,
@@ -319,7 +319,7 @@
       "5": 1,
       "6": 1,
       "7": 1,
-      "8": 1,
+      "8": 2,
       "9": 2,
       "10": 1,
       "11": 1,
@@ -344,7 +344,7 @@
     },
     "10": {
       "1": 0,
-      "2": 2,
+      "2": 3,
       "3": 0,
       "4": 0,
       "5": 0,
@@ -367,7 +367,7 @@
       "7": 0
     },
     "12": {
-      "1": 0,
+      "1": 1,
       "2": 1,
       "3": 1,
       "4": 2,

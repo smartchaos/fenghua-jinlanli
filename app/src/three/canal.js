@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import { RX, RZ } from './constants.js';
-import { flatMat, themedMats } from './theme.js';
+import { flatMat, themedMats, waterMat } from './theme.js';
 
 /* ---------- 京杭大运河（西侧中远景）+ 电厂河 + 路网 + 双桥 + 红绿灯 ---------- */
 export function createCanal(scene, renderer){
   const canalGrp = new THREE.Group(); scene.add(canalGrp);
   const maxAniso = renderer ? renderer.capabilities.getMaxAnisotropy() : 1;
 
-  const canalMat = flatMat(0x0a2e44, 0x6aa3c8);
+  const canalMat = waterMat(0x0a2e44, 0x4e8099);
   const canal = new THREE.Mesh(new THREE.PlaneGeometry(170, 1600), canalMat);
   canal.rotation.x = -Math.PI/2; canal.position.set(-350, 0.03, 0);
   canalGrp.add(canal);

@@ -1,11 +1,25 @@
 import * as THREE from 'three';
 import { mulberry32 } from './rng.js';
 import { SITE_PAL } from './palette.js';
+import { grainOverlay } from './theme.js';
 import { SITE_W, SITE_D, SITE_LIFT } from './constants.js';
 
 const W = 1680, H = 1960;
 const px = x => (x + SITE_W/2) / SITE_W * W;
 const py = z => (z + SITE_D/2) / SITE_D * H;
+
+/* 树影: 径向渐隐取代实心椭圆, 让地面有林下透光感 */
+function softShade(g, x, y, rx, ry, rot, rgb, a){
+  g.save();
+  g.translate(x, y); g.rotate(rot); g.scale(rx, ry);
+  const rg = g.createRadialGradient(0, 0, 0.08, 0, 0, 1);
+  rg.addColorStop(0, `rgba(${rgb},${a})`);
+  rg.addColorStop(.55, `rgba(${rgb},${a*0.7})`);
+  rg.addColorStop(1, `rgba(${rgb},0)`);
+  g.fillStyle = rg;
+  g.beginPath(); g.arc(0, 0, 1, 0, Math.PI*2); g.fill();
+  g.restore();
+}
 
 /* 平台顶地块分片(东侧 x59.8..83 / z0.5..29.5 为门洞通道, 留在 y=0) */
 const PLOT_RECTS = [
@@ -120,10 +134,8 @@ function drawPlot(g, P, M, rects, R, treeSpots, spotKeys){
   function addTree(x, z, s, kind){
     const rr = 2.6 + rnd()*4.4;
     const shade = P.treeLo + Math.floor(rnd()*P.treeSpan);
-    g.fillStyle = P.treeFill(shade);
-    g.beginPath(); g.ellipse(px(x), py(z), rr*2.6, rr*2.0, rnd()*3, 0, Math.PI*2); g.fill();
-    g.fillStyle = P.treeHi;
-    g.beginPath(); g.ellipse(px(x)-3, py(z)-3, rr*1.2, rr*0.9, 0, 0, Math.PI*2); g.fill();
+    softShade(g, px(x), py(z), rr*2.7, rr*2.1, rnd()*3,
+      `${shade},${shade+34},${shade+18}`, 0.45);
     const key = x.toFixed(1) + ',' + z.toFixed(1);
     if(x >= R.x0 && x <= R.x1 && z >= R.z0 && z <= R.z1 && !spotKeys.has(key)){
       spotKeys.add(key);
@@ -147,6 +159,7 @@ function drawPlot(g, P, M, rects, R, treeSpots, spotKeys){
     if(x > 48 && x < 86 && z > -10 && z < 40) continue;   // 避让东门楼与入口广场
     addTree(x, z, 0.75 + rnd()*0.75, rnd());
   }
+  grainOverlay(g, g.canvas.width, g.canvas.height, 0.85);
 }
 
 /* 地面双层: 底层(y=0)外围基底/河道/道路/南侧花坛 + 平台顶(SITE_LIFT)地块分片。
@@ -176,6 +189,21 @@ export function createSite(day, buildings, maxAnisotropy){
     }
     g.stroke();
   }
+  /* 日照碎光: 短横纹随太阳方向聚集, 让水面有镜面高光 */
+  const glint = g.createLinearGradient(0, 0, W, 0);
+  glint.addColorStop(0, day ? 'rgba(255,244,214,.01)' : 'rgba(170,205,225,.01)');
+  glint.addColorStop(.62, day ? 'rgba(255,248,225,.07)' : 'rgba(170,205,225,.04)');
+  glint.addColorStop(1, day ? 'rgba(255,244,214,.015)' : 'rgba(170,205,225,.01)');
+  g.fillStyle = glint; g.fillRect(0, 0, W, py(-142));
+  const hash = i => { const v = Math.sin(i*127.1)*43758.5453; return v - Math.floor(v); };
+  g.strokeStyle = day ? 'rgba(255,250,232,.34)' : 'rgba(170,205,225,.12)';
+  g.lineWidth = 1.4;
+  for(let i = 0; i < 240; i++){
+    const gx = hash(i*3)*W, gy = hash(i*3+1)*py(-142);
+    g.globalAlpha = 0.08 + hash(i*3+2)*0.28;
+    g.beginPath(); g.moveTo(gx, gy); g.lineTo(gx + 6 + hash(i*7)*24, gy); g.stroke();
+  }
+  g.globalAlpha = 1;
   g.fillStyle = P.bank; g.fillRect(0, py(-143.4), W, py(-142)-py(-143.4));
   g.fillStyle = P.bankEdge; g.fillRect(0, py(-142.2), W, 2);
 
@@ -240,16 +268,28 @@ export function createSite(day, buildings, maxAnisotropy){
     treeSpots.push({ x, z: zz, s: 0.8 + rnd0()*0.4, kind: rnd0(), y: 0 });
     const rr = 2.6 + rnd0()*4.4;
     const shade = P.treeLo + Math.floor(rnd0()*P.treeSpan);
-    g.fillStyle = P.treeFill(shade);
-    g.beginPath(); g.ellipse(px(x), py(zz), rr*2.6, rr*2.0, rnd0()*3, 0, Math.PI*2); g.fill();
-    g.fillStyle = P.treeHi;
-    g.beginPath(); g.ellipse(px(x)-3, py(zz)-3, rr*1.2, rr*0.9, 0, 0, Math.PI*2); g.fill();
+    softShade(g, px(x), py(zz), rr*2.7, rr*2.1, rnd0()*3,
+      `${shade},${shade+34},${shade+18}`, 0.45);
   }
+
+  /* 地形起伏: 低频明暗斑, 消除整片纯色草坪的平面感 */
+  const mottle = i => { const v = Math.sin(i*78.233)*43758.5453; return v - Math.floor(v); };
+  g.save(); g.globalCompositeOperation = 'soft-light';
+  for(let i = 0; i < 52; i++){
+    const cx = mottle(i*4)*W, cy = mottle(i*4+1)*H, r = 180 + mottle(i*4+2)*300;
+    const dark = mottle(i*4+3) > .5;
+    const mg = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+    mg.addColorStop(0, dark ? 'rgba(40,50,34,.07)' : 'rgba(255,250,225,.06)');
+    mg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = mg; g.fillRect(cx-r, cy-r, r*2, r*2);
+  }
+  g.restore();
 
   g.textAlign = 'center'; g.fillStyle = P.lblRiver; g.font = '500 30px "PingFang SC",sans-serif';
   g.fillText('电 厂 河', px(0), py(-161));
   g.save(); g.translate(px(110), py(10)); g.rotate(Math.PI/2); g.fillStyle = P.lblRoad; g.fillText('顾 扬 路', 0, 0); g.restore();
   g.textAlign = 'left'; g.fillStyle = P.lblRoad; g.fillText('朱 家 坝 路', px(-60), py(152));
+  grainOverlay(g, W, H, 0.85);
 
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -276,7 +316,7 @@ export function drawMeadow(day){
   const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 2048;
   const g = cv.getContext('2d');
   const P = day
-    ? { base:['#8abd63','#7aac55'], patch:['#9ccc6e','#6da148','#aad479','#7fb35a'], path:'rgba(203,178,122,.55)', dot:['#eef6dd','#f4e9ae','#dcefff','#f2d8e0'] }
+    ? { base:['#7e9a63','#6b8855'], patch:['#89a56c','#5f7d4c','#98b377','#6e8c58'], path:'rgba(190,170,125,.5)', dot:['#e6eed8','#eee0a8','#d6e6f0','#ebd3d8'] }
     : { base:['#15261b','#101e14'], patch:['#1a2f21','#0d1a12','#1d3325','#132419'], path:'rgba(70,64,42,.35)', dot:['#33503f','#3d4a38','#2e4460'] };
   const grd = g.createLinearGradient(0, 0, 2048, 2048);
   grd.addColorStop(0, P.base[0]); grd.addColorStop(1, P.base[1]);
@@ -302,6 +342,7 @@ export function drawMeadow(day){
     g.beginPath(); g.arc(rnd()*2048, rnd()*2048, 2+rnd()*3.2, 0, 7); g.fill();
   }
   g.globalAlpha = 1;
+  grainOverlay(g, 2048, 2048, 0.7);
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   return tex;
 }
