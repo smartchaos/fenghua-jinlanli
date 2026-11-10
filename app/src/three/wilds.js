@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32 } from './rng.js';
-import { RX, SITE_LIFT } from './constants.js';
+import { SITE_LIFT, CANAL_X } from './constants.js';
 import { regColor, flatMat } from './theme.js';
 
 /* 小区乔木（与平面纹理的树冠投影共用同一批落点） */
@@ -59,35 +59,23 @@ export function createCanalTrees(canalGrp){
     return g;
   }
   const cwRnd = mulberry32(20261106);
-  for(let i = 0; i < 32; i++){
-    const z = -790 + i*50 + cwRnd()*16;
+  for(let i = 0; i < 97; i++){
+    const z = -2400 + i*50 + cwRnd()*16;
     if(z > -186 && z < -136) continue;  // 河口缺口
     if(z > 132 && z < 168) continue;    // 南路交叉口
-    canalGrp.add(cwTree(-258 + cwRnd()*14, z, 0.9 + cwRnd()*0.7));
+    canalGrp.add(cwTree(CANAL_X + 104 + cwRnd()*14, z, 0.9 + cwRnd()*0.7));
   }
 }
 
-/* ---------- 旷野之息式外围: 丘陵 / 远山 / 树丛 / 岩石 (低饱和, 不抢焦点) ---------- */
+/* ---------- 外围远景: 远山 (城市轮廓之外) ---------- */
 export function createWilds(canalGrp){
-  const hillDefs = [
-    [330,-350,120,26],[450,150,140,30],[300,470,130,24],
-    [-95,590,150,30],[-660,-640,170,36],[560,480,130,26]
-  ];
-  const hillMat = new THREE.MeshStandardMaterial({ color: 0x1b2f22, roughness: 1, flatShading: true });
-  regColor(hillMat.color, 0x1b2f22, 0x6e8a5c);
-  const hillGeo = new THREE.SphereGeometry(1, 20, 12);
-  hillDefs.forEach(([x, z, r, h])=>{
-    const m = new THREE.Mesh(hillGeo, hillMat);
-    m.position.set(x, 0, z); m.scale.set(r, h, r);
-    canalGrp.add(m);
-  });
-
   const mtnMat = new THREE.MeshStandardMaterial({ color: 0x080d18, roughness: 1, flatShading: true });
   regColor(mtnMat.color, 0x080d18, 0x5f7396);
   const capMat = new THREE.MeshStandardMaterial({ color: 0x1c2739, roughness: 1, flatShading: true });
   regColor(capMat.color, 0x1c2739, 0xdde8f2);
   const mtnGeo = new THREE.ConeGeometry(1, 1, 5);
-  [[-805,-575,260,135],[288,-874,300,150],[805,-483,240,125],[897,230,260,135],[575,782,280,145],[-518,874,300,150],[-909,345,260,130]].forEach(([x, z, r, h])=>{
+  [[-1750,-1300,240,135],[500,-2150,270,150],[1850,-1150,220,125],
+   [2000,600,240,135],[1350,1850,250,145],[-1250,1950,260,150],[-2050,850,240,130]].forEach(([x, z, r, h])=>{
     const m = new THREE.Mesh(mtnGeo, mtnMat);
     m.position.set(x, h/2 - 4, z); m.scale.set(r, h, r);
     canalGrp.add(m);
@@ -96,56 +84,6 @@ export function createWilds(canalGrp){
     canalGrp.add(cap);
   });
 
-  const bwTrunk = new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 1, flatShading: true });
-  regColor(bwTrunk.color, 0x2a2118, 0x8a6b48);
-  const bwLeaf1 = new THREE.MeshStandardMaterial({ color: 0x14301e, roughness: 1, flatShading: true });
-  regColor(bwLeaf1.color, 0x14301e, 0x3d5a3c);
-  const bwLeaf2 = new THREE.MeshStandardMaterial({ color: 0x17351f, roughness: 1, flatShading: true });
-  regColor(bwLeaf2.color, 0x17351f, 0x3d5a3c);
-  const bwLeaf3 = new THREE.MeshStandardMaterial({ color: 0x112a19, roughness: 1, flatShading: true });
-  regColor(bwLeaf3.color, 0x112a19, 0x334c32);
-  const bwTrunkGeo = new THREE.CylinderGeometry(0.35, 0.55, 3.2, 5);
-  const bwBlobGeo = new THREE.SphereGeometry(2.4, 7, 5);
-  const bwRnd = mulberry32(20261107);
-  function bwTree(x, z, s){
-    const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s);
-    const t = new THREE.Mesh(bwTrunkGeo, bwTrunk); t.position.y = 1.6; g.add(t);
-    const lf = bwRnd() < .33 ? bwLeaf1 : (bwRnd() < .5 ? bwLeaf2 : bwLeaf3);
-    const b1 = new THREE.Mesh(bwBlobGeo, lf); b1.position.y = 4.4; b1.scale.set(1.15, .95, 1.15); g.add(b1);
-    const b2 = new THREE.Mesh(bwBlobGeo, lf); b2.position.set(.9, 5.6, .4); b2.scale.setScalar(.72); g.add(b2);
-    const b3 = new THREE.Mesh(bwBlobGeo, lf); b3.position.set(-.9, 5.3, -.5); b3.scale.setScalar(.6); g.add(b3);
-    return g;
-  }
-  [[260,-260],[420,-60],[300,260],[60,330],[-180,300],[-60,-280],
-   [180,-420],[-260,-320],[520,60],[420,360],[-320,180],[-520,420],
-   [620,-260],[240,560],[-140,-480],[640,300]].forEach(([cx, cz])=>{
-    const n = 4 + Math.floor(bwRnd()*5);
-    for(let i = 0; i < n; i++){
-      const a = bwRnd()*6.283, r = 6 + bwRnd()*40;
-      const x = cx + Math.cos(a)*r, z = cz + Math.sin(a)*r;
-      if(x > -140 && x < 140 && z > -210 && z < 210) continue;                    // 避让小区
-      if(x > -460 && x < -240 && z > -560 && z < 560) continue;                    // 避让运河
-      if(Math.abs(x - RX) < 13) continue;                                          // 避让东路走廊
-      if(Math.abs(z - 150) < 13 && x > -260 && x < 130) continue;                  // 避让南路走廊
-      if(hillDefs.some(([hx, hz, hr]) => (x-hx)*(x-hx) + (z-hz)*(z-hz) < (hr+24)*(hr+24))) continue; // 避让丘陵
-      canalGrp.add(bwTree(x, z, 0.9 + bwRnd()*0.8));
-    }
-  });
-
-  const rockMat = new THREE.MeshStandardMaterial({ color: 0x272e38, roughness: 1, flatShading: true });
-  regColor(rockMat.color, 0x272e38, 0x98a0ac);
-  const rockGeo = new THREE.DodecahedronGeometry(1, 0);
-  for(let i = 0; i < 12; i++){
-    const a = bwRnd()*6.283, r = 220 + bwRnd()*380;
-    const x = Math.cos(a)*r, z = Math.sin(a)*r;
-    if(x > -460 && x < -240 && z > -560 && z < 560) continue;
-    if(Math.abs(x - RX) < 13) continue;
-    if(Math.abs(z - 150) < 13 && x > -260 && x < 130) continue;
-    const m = new THREE.Mesh(rockGeo, rockMat);
-    const s = 1.6 + bwRnd()*3.4;
-    m.position.set(x, s*0.4, z); m.scale.set(s, s*0.7, s); m.rotation.y = bwRnd()*3;
-    canalGrp.add(m);
-  }
 }
 
 /* ---------- 白帆与竹排 ---------- */
@@ -183,8 +121,8 @@ export function createBoats(canalGrp){
     punting.position.set(2.4, 1.1, 0.6); punting.rotation.z = 0.5; g.add(punting);
     return g;
   }
-  [[-338, 55, 0.35, 'sail'],[-372, -132, -0.2, 'sail'],[-330, 262, 0.15, 'sail'],
-   [-358, 168, 0.5, 'raft'],[-344, -258, -0.4, 'raft'],[-186, -161, 0.9, 'sail'],[-252, -161, -0.7, 'raft']
+  [[CANAL_X+12, 55, 0.35, 'sail'],[CANAL_X-22, -132, -0.2, 'sail'],[CANAL_X+20, 262, 0.15, 'sail'],
+   [CANAL_X-8, 168, 0.5, 'raft'],[CANAL_X+6, -258, -0.4, 'raft'],[-186, -161, 0.9, 'sail'],[-252, -161, -0.7, 'raft']
   ].forEach(([x, z, rot, kind])=>{
     const b = kind === 'sail' ? makeSailBoat() : makeRaft();
     b.position.set(x, 0.32, z); b.rotation.y = rot;
@@ -202,7 +140,7 @@ export function createCanalLabel(canalGrp){
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.8, depthWrite: false });
   regColor(mat.color, 0x93a9be, 0x3d5a74);
   const sp = new THREE.Sprite(mat);
-  sp.scale.set(150, 19, 1); sp.position.set(-350, 26, -60);
+  sp.scale.set(150, 19, 1); sp.position.set(CANAL_X, 26, -60);
   canalGrp.add(sp);
 }
 

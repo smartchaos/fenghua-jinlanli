@@ -1,51 +1,101 @@
 import * as THREE from 'three';
 import { mulberry32 } from './rng.js';
-import { RX, RZ } from './constants.js';
+import { WORLD_HALF } from './constants.js';
 import { regColor, flatMat, themedMats, grainOverlay } from './theme.js';
+import SURROUNDINGS from './surroundings.json';
 
 const CITY = {
   cell: 46,
-  rings: [[250, 450, 0.8], [450, 700, 0.62], [700, 900, 0.35]],
-  silhouette: [900, 1300],
-  west: { x0: -230, x1: -150, z0: -120, z1: 120, cols: 2, rows: 5 },
-  seed: 20261109,
+  rings: [[180, 600, 0.86], [600, 1100, 0.62], [1100, 1600, 0.36]],
+  silhouette: [1600, 2100],
+  seed: 20261110,
 };
 
-const HILLS = [[330,-350,120],[450,150,140],[300,470,130],
-               [-95,590,150],[-660,-640,170],[560,480,130]];
-const MTNS = [[-805,-575,260],[288,-874,300],[805,-483,240],[897,230,260],
-              [575,782,280],[-518,874,300],[-909,345,260]];
+const CANAL = SURROUNDINGS.meta.canal;
+const EXTENT = SURROUNDINGS.meta.extent;
+const VIADUCT_Z = SURROUNDINGS.meta.viaductZ;
+const COMPOUNDS = SURROUNDINGS.compounds;
+const ROADS = SURROUNDINGS.roads;
+const WATERS = SURROUNDINGS.waters;
+const GREEN_ZONES = SURROUNDINGS.greenZones || [];
+const CLEAR_ZONES = SURROUNDINGS.clearZones || [];
+const PLANT = SURROUNDINGS.powerPlant || null;
 
-/* 实体道路/河道的占地范围，取自 canal.js / ground.js 的实际几何；建筑按包围盒避让 */
-const ROAD_WATER_BANDS = [
-  [-440, -230, -900, 900],
-  [-900, 900, -185, -138],
-  [-900, 900, 138, 162],
-  [98, 122, -900, 900],
-  [-750, 750, -308, -292],
-];
-
-function hitsRoadOrWater(x, z, w, d){
-  return ROAD_WATER_BANDS.some(b =>
-    x - w/2 < b[1] && x + w/2 > b[0] &&
-    z - d/2 < b[3] && z + d/2 > b[2]);
+/* ---------- 几何判定 ---------- */
+function pointInPoly(x, z, poly){
+  let inside = false;
+  for(let i = 0, j = poly.length - 1; i < poly.length; j = i++){
+    const [xi, zi] = poly[i], [xj, zj] = poly[j];
+    if((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
-/* 禁建区：小区/运河/两条主干道/电厂河/丘陵/远山 */
-export function isForbidden(x, z){
-  if(Math.abs(x) < 140 && Math.abs(z) < 210) return true;
-  const w = CITY.west;
-  if(x > w.x0 - 5 && x < w.x1 + 5 && z > w.z0 - 5 && z < w.z1 + 5) return true;
-  if(x > -460 && x < -240) return true;
-  if(Math.abs(x - RX) < 25) return true;
-  if(Math.abs(z - RZ) < 25) return true;
-  if(Math.abs(z + 161) < 28) return true;
-  const disc = (cx, cz, r) => Math.hypot(x-cx, z-cz) < r;
-  if(HILLS.some(h => disc(h[0], h[1], h[2]))) return true;
-  if(MTNS.some(m => disc(m[0], m[1], m[2]))) return true;
+function segDist(x, z, x0, z0, x1, z1){
+  const vx = x1 - x0, vz = z1 - z0;
+  const L2 = vx * vx + vz * vz;
+  const t = L2 ? Math.max(0, Math.min(1, ((x - x0) * vx + (z - z0) * vz) / L2)) : 0;
+  return Math.hypot(x - (x0 + t * vx), z - (z0 + t * vz));
+}
+
+function polyHit(x, z, poly, pad = 0){
+  if(pointInPoly(x, z, poly)) return true;
+  if(pad > 0){
+    return pointInPoly(x + pad, z, poly) || pointInPoly(x - pad, z, poly) ||
+           pointInPoly(x, z + pad, poly) || pointInPoly(x, z - pad, poly);
+  }
   return false;
 }
 
+function hitsStatic(x, z, w, d){
+  const r = Math.max(w, d) / 2;
+  if(Math.abs(x - CANAL.center) < CANAL.width / 2 + r + 8) return true;
+  if(Math.abs(z - VIADUCT_Z) < 8 + r) return true;
+  for(const road of ROADS){
+    if(segDist(x, z, road.x0, road.z0, road.x1, road.z1) < road.w / 2 + r + 4) return true;
+  }
+  for(const water of WATERS){
+    if(segDist(x, z, water.x0, water.z0, water.x1, water.z1) < water.w / 2 + r + 4) return true;
+  }
+  const pad = Math.max(w, d) / 2 + 4;
+  for(const comp of COMPOUNDS){
+    if(polyHit(x, z, comp.poly, pad)) return true;
+  }
+  for(const g of GREEN_ZONES){
+    if(polyHit(x, z, g.poly, pad)) return true;
+  }
+  for(const g of CLEAR_ZONES){
+    if(polyHit(x, z, g.poly, pad)) return true;
+  }
+  if(PLANT && polyHit(x, z, PLANT.poly, pad)) return true;
+  return false;
+}
+
+/* 禁建区：小区本体 / 运河 / 真实小区 / 绿地 / 主干道 / 电厂河 / 高架 */
+export function isForbidden(x, z){
+  if(Math.abs(x) < 140 && Math.abs(z) < 210) return true;
+  if(Math.abs(x - CANAL.center) < CANAL.width / 2 + 40) return true;
+  if(Math.abs(z - VIADUCT_Z) < 26) return true;
+  for(const comp of COMPOUNDS){
+    if(pointInPoly(x, z, comp.poly)) return true;
+  }
+  for(const g of GREEN_ZONES){
+    if(pointInPoly(x, z, g.poly)) return true;
+  }
+  for(const g of CLEAR_ZONES){
+    if(pointInPoly(x, z, g.poly)) return true;
+  }
+  if(PLANT && pointInPoly(x, z, PLANT.poly)) return true;
+  for(const road of ROADS){
+    if(segDist(x, z, road.x0, road.z0, road.x1, road.z1) < road.w / 2 + 8) return true;
+  }
+  for(const water of WATERS){
+    if(segDist(x, z, water.x0, water.z0, water.x1, water.z1) < water.w / 2 + 8) return true;
+  }
+  return false;
+}
+
+/* ---------- 材质 ---------- */
 function makeFacadeTexture(day){
   const cv = document.createElement('canvas'); cv.width = cv.height = 512;
   const g = cv.getContext('2d');
@@ -71,10 +121,74 @@ function makeBuildingMaterial(){
   m.userData.nightTex = m.map;
   m.userData.dayTex = makeFacadeTexture(true);
   themedMats.push(m);
-  regColor(m.color, 0x7c838c, 0xb6b8b2);
+  regColor(m.color, 0x6b737d, 0x9a9d98);
   return m;
 }
 
+/* ---------- 真实小区楼群 ---------- */
+function heightFor(kind, floors){
+  if(kind === '洋房') return floors * 3.2 + 1.4;
+  return 4.4 + (floors - 1) * 3.05 + 1.4;
+}
+
+function realInstances(){
+  const list = [];
+  for(const comp of COMPOUNDS){
+    for(const b of comp.buildings){
+      list.push({
+        x: b.x, z: b.z, w: b.w, d: b.d, h: heightFor(comp.kind, b.f),
+        rot: (b.rot || 0) * Math.PI / 180,
+        type: 'real', kind: comp.kind, group: comp.id, real: true,
+      });
+    }
+  }
+  return list;
+}
+
+const _m4 = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
+const _e = new THREE.Euler();
+const _v = new THREE.Vector3();
+const _s = new THREE.Vector3();
+
+function setInst(mesh, i, x, z, w, h, d, rot){
+  _e.set(0, rot || 0, 0); _q.setFromEuler(_e);
+  _v.set(x, h / 2, z); _s.set(w, h, d);
+  _m4.compose(_v, _q, _s);
+  mesh.setMatrixAt(i, _m4);
+}
+
+function makeRealMesh(list){
+  const mesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 1, 1), makeBuildingMaterial(), list.length);
+  mesh.name = 'city-real';
+  list.forEach((it, i) => setInst(mesh, i, it.x, it.z, it.w, it.h, it.d, it.rot));
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.castShadow = false; mesh.receiveShadow = false;
+  return mesh;
+}
+
+/* ---------- 真实路网 ---------- */
+function makeRoads(){
+  const list = ROADS.filter(r => r.render);
+  if(!list.length) return null;
+  const mesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 1, 1), flatMat(0x101317, 0x3d4248), list.length);
+  mesh.name = 'city-real-roads';
+  list.forEach((r, i) => {
+    const dx = r.x1 - r.x0, dz = r.z1 - r.z0, len = Math.hypot(dx, dz);
+    _e.set(0, Math.atan2(-dz, dx), 0); _q.setFromEuler(_e);
+    _v.set((r.x0 + r.x1) / 2, 0.04, (r.z0 + r.z1) / 2);
+    _s.set(len, 0.1, r.w);
+    _m4.compose(_v, _q, _s);
+    mesh.setMatrixAt(i, _m4);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.castShadow = false; mesh.receiveShadow = false;
+  return mesh;
+}
+
+/* ---------- 程序化城市填充 ---------- */
 function generate(rnd){
   const instances = [];
   let rejected = 0;
@@ -90,11 +204,11 @@ function generate(rnd){
         if(isForbidden(x, z)){ rejected++; continue; }
         const roll = rnd();
         let type, w, d, h;
-        if(roll < .06 && r > 420 && r < 900){ type = 'landmark'; w = 16 + rnd()*8; d = 16 + rnd()*8; h = 58 + rnd()*24; }
+        if(roll < .06 && r > 420){ type = 'landmark'; w = 16 + rnd()*8; d = 16 + rnd()*8; h = 58 + rnd()*24; }
         else if(roll < .30){ type = 'tower'; w = 18 + rnd()*8; d = 16 + rnd()*8; h = 34 + rnd()*24; }
         else if(roll < .48){ type = 'podium'; w = 30 + rnd()*18; d = 22 + rnd()*14; h = 8 + rnd()*6; }
         else { type = 'slab'; w = 14 + rnd()*16; d = 12 + rnd()*12; h = 16 + rnd()*20; }
-        if(hitsRoadOrWater(x, z, w, d)){ rejected++; continue; }
+        if(hitsStatic(x, z, w, d)){ rejected++; continue; }
         instances.push({ x, z, type, w, d, h });
       }
     }
@@ -102,33 +216,19 @@ function generate(rnd){
   return { instances, rejected };
 }
 
-/* 西侧独立住宅组团：运河东岸以东、本小区以西，参考图里成排的点式高层 */
-function makeWestResidential(rnd){
-  const list = [];
-  for(let col = 0; col < CITY.west.cols; col++){
-    for(let row = 0; row < CITY.west.rows; row++){
-      const x = -212 + col * 42 + (rnd() - .5) * 3;
-      const z = -100 + row * 50 + (rnd() - .5) * 3;
-      const bw = 18 + rnd() * 5, bd = 16 + rnd() * 4, bh = 32 + rnd() * 16;
-      if(hitsRoadOrWater(x, z, bw, bd)) continue;
-      list.push({ x, z, type: row % 2 === 0 ? 'tower' : 'slab',
-                  w: bw, d: bd, h: bh, group: 'west' });
-    }
-  }
-  return list;
-}
-
 function makeGreenTexture(day){
   const cv = document.createElement('canvas'); cv.width = cv.height = 512;
   const g = cv.getContext('2d');
   g.clearRect(0, 0, 512, 512);
   const hash = i => { const v = Math.sin(i*78.233)*43758.5453; return v - Math.floor(v); };
-  g.fillStyle = day ? 'rgba(96,124,84,.28)' : 'rgba(26,44,30,.22)';
+  g.fillStyle = day ? 'rgba(90,116,78,.10)' : 'rgba(26,44,30,.12)';
   for(let i = 0; i < 180; i++){
     const x = hash(i*3)*512, y = hash(i*3+1)*512, r = 8 + hash(i*3+2)*26;
     g.beginPath(); g.ellipse(x, y, r, r*(.5 + hash(i*7)*.5), 0, 0, Math.PI*2); g.fill();
   }
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(8, 8);
   return tex;
 }
 
@@ -139,7 +239,7 @@ function makeGreenMesh(){
   mat.userData.nightTex = mat.map;
   mat.userData.dayTex = makeGreenTexture(true);
   themedMats.push(mat);
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1500, 1500), mat);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2), mat);
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.y = -0.30;
   mesh.name = 'city-green';
@@ -148,19 +248,20 @@ function makeGreenMesh(){
 }
 
 function makeViaduct(){
-  /* Group 自身位于 y=8: 测试直接读 group.position.y, 桥面/桥墩用相对坐标 */
+  /* 留石高架真实在小区以南约 3km, 这里作为南侧远景放在 z=+1950 */
   const grp = new THREE.Group(); grp.name = 'city-viaduct';
   grp.position.y = 8;
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(1500, 0.8, 12), flatMat(0x1a1e24, 0x8c8d88));
-  deck.position.set(0, 0, -300);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(WORLD_HALF * 2, 0.8, 12), flatMat(0x1a1e24, 0x8c8d88));
+  deck.name = 'city-viaduct-deck';
+  deck.position.set(0, 0, VIADUCT_Z);
   deck.castShadow = false; deck.receiveShadow = false;
   grp.add(deck);
   const xs = [];
-  for(let x = -720; x <= 720; x += 60) xs.push(x);
+  for(let x = -WORLD_HALF + 40; x <= WORLD_HALF - 40; x += 60) xs.push(x);
   const piers = new THREE.InstancedMesh(
     new THREE.BoxGeometry(3, 7.6, 3), flatMat(0x20242b, 0x9a9a94), xs.length);
   const m4 = new THREE.Matrix4();
-  xs.forEach((x, i) => { m4.makeTranslation(x, -4, -300); piers.setMatrixAt(i, m4); });
+  xs.forEach((x, i) => { m4.makeTranslation(x, -4, VIADUCT_Z); piers.setMatrixAt(i, m4); });
   piers.instanceMatrix.needsUpdate = true;
   piers.castShadow = false; piers.receiveShadow = false;
   grp.add(piers);
@@ -170,25 +271,20 @@ function makeViaduct(){
 function makeSilhouette(rnd){
   const list = [];
   let skipped = 0;
-  for(let i = 0; i < 260; i++){
+  for(let i = 0; i < 320; i++){
     const a = rnd() * Math.PI * 2;
     const r = CITY.silhouette[0] + rnd() * (CITY.silhouette[1] - CITY.silhouette[0]);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if(isForbidden(x, z)){ skipped++; continue; }
     const bw = 12 + rnd()*16, bd = 12 + rnd()*16, bh = 20 + rnd()*30;
-    if(hitsRoadOrWater(x, z, bw, bd)){ skipped++; continue; }
+    if(hitsStatic(x, z, bw, bd)){ skipped++; continue; }
     list.push({ x, z, type: 'silhouette', w: bw, d: bd, h: bh });
   }
   const mat = new THREE.MeshStandardMaterial({ color: 0x5f6b78, roughness: 1 });
   regColor(mat.color, 0x1d2632, 0x8b98a6);
   const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, list.length);
   mesh.name = 'city-silhouette';
-  const m4 = new THREE.Matrix4();
-  list.forEach((it, i) => {
-    m4.makeScale(it.w, it.h, it.d);
-    m4.setPosition(it.x, it.h / 2, it.z);
-    mesh.setMatrixAt(i, m4);
-  });
+  list.forEach((it, i) => setInst(mesh, i, it.x, it.z, it.w, it.h, it.d, it.rot));
   mesh.instanceMatrix.needsUpdate = true;
   mesh.castShadow = false; mesh.receiveShadow = false;
   return { mesh, list, skipped };
@@ -199,15 +295,72 @@ function makeBaseMesh(all){
   const mesh = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 1, 1), flatMat(0x1a201a, 0x555c4c), list.length);
   mesh.name = 'city-base';
-  const m4 = new THREE.Matrix4();
-  list.forEach((it, i) => {
-    m4.makeScale(it.w * 1.18, 0.5, it.d * 1.18);
-    m4.setPosition(it.x, 0.12, it.z);
-    mesh.setMatrixAt(i, m4);
-  });
+  list.forEach((it, i) => setInst(mesh, i, it.x, it.z, it.w * 1.18, 0.5, it.d * 1.18, it.rot));
   mesh.instanceMatrix.needsUpdate = true;
   mesh.castShadow = false; mesh.receiveShadow = false;
   return mesh;
+}
+
+/* ---------- 半山电厂（燃气）：大跨度厂房 + 机力冷却塔/罐群 + 烟囱 + 八卦田 + 操场 ---------- */
+function makePlant(){
+  if(!PLANT) return null;
+  const grp = new THREE.Group();
+  grp.name = 'city-plant';
+
+  /* 厂区地坪（混凝土灰） */
+  const xs = PLANT.poly.map(p => p[0]), zs = PLANT.poly.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+  const yardMat = flatMat(0x2b2f31, 0x9fa29c);
+  const yard = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), yardMat);
+  yard.rotation.x = -Math.PI / 2;
+  yard.position.set((x0 + x1) / 2, 0.03, (z0 + z1) / 2);
+  grp.add(yard);
+
+  const hallMat = new THREE.MeshStandardMaterial({ color: 0xc6cbcd, roughness: 0.9, metalness: 0.05 });
+  regColor(hallMat.color, 0x5f666d, 0xc6cbcd);
+  const halls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), hallMat, PLANT.halls.length);
+  halls.name = 'plant-halls';
+  PLANT.halls.forEach((h, i) => setInst(halls, i, h.x, h.z, h.w, h.h, h.d, h.rot || 0));
+  halls.instanceMatrix.needsUpdate = true;
+  halls.castShadow = false; halls.receiveShadow = false;
+  grp.add(halls);
+
+  const cylMat = new THREE.MeshStandardMaterial({ color: 0xd6d8d4, roughness: 0.85 });
+  regColor(cylMat.color, 0x74787d, 0xdedfda);
+  const cyl = [];
+  PLANT.towers.forEach(t => cyl.push({ x: t.x, z: t.z, r: 13, h: 20 }));
+  PLANT.tanks.forEach(t => cyl.push({ x: t.x, z: t.z, r: 12, h: 7 }));
+  PLANT.stacks.forEach(t => cyl.push({ x: t.x, z: t.z, r: t.r, h: t.h }));
+  const cylMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 14), cylMat, cyl.length);
+  cylMesh.name = 'plant-cyl';
+  cyl.forEach((c, i) => {
+    _q.identity(); _v.set(c.x, c.h / 2, c.z); _s.set(c.r, c.h, c.r);
+    _m4.compose(_v, _q, _s); cylMesh.setMatrixAt(i, _m4);
+  });
+  cylMesh.instanceMatrix.needsUpdate = true;
+  cylMesh.castShadow = false; cylMesh.receiveShadow = false;
+  grp.add(cylMesh);
+
+  const fieldMat = new THREE.MeshStandardMaterial({ color: 0x5f8a4c, roughness: 1 });
+  regColor(fieldMat.color, 0x18280f, 0x86b06a);
+  const pathMat = flatMat(0x8a8574, 0xd8d4c2);
+  const bg = PLANT.bagua;
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(bg.r, 40), fieldMat);
+  disc.rotation.x = -Math.PI / 2; disc.position.set(bg.x, 0.05, bg.z);
+  grp.add(disc);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(bg.r * 0.70, bg.r * 0.82, 40), pathMat);
+  ring.rotation.x = -Math.PI / 2; ring.position.set(bg.x, 0.07, bg.z);
+  grp.add(ring);
+  const st = PLANT.stadium;
+  const field = new THREE.Mesh(new THREE.CircleGeometry(1, 36), fieldMat);
+  field.rotation.x = -Math.PI / 2; field.scale.set(st.rx, st.rz, 1);
+  field.position.set(st.x, 0.05, st.z);
+  grp.add(field);
+  const track = new THREE.Mesh(new THREE.RingGeometry(0.86, 1.0, 40), flatMat(0x8a4a3a, 0xc07a5c));
+  track.rotation.x = -Math.PI / 2; track.scale.set(st.rx, st.rz, 1);
+  track.position.set(st.x, 0.07, st.z);
+  grp.add(track);
+  return grp;
 }
 
 export function createCityscape(scene){
@@ -216,35 +369,56 @@ export function createCityscape(scene){
   const rnd = mulberry32(CITY.seed);
   const { instances, rejected } = generate(rnd);
   const sil = makeSilhouette(rnd);
-  const west = makeWestResidential(rnd);
-  const all = instances.concat(sil.list, west);
+  const real = realInstances();
+  const all = instances.concat(sil.list, real);
 
-  const byType = { slab: 0, tower: 0, podium: 0, landmark: 0, silhouette: 0 };
+  const byType = { slab: 0, tower: 0, podium: 0, landmark: 0, silhouette: 0, real: 0 };
   all.forEach(it => { byType[it.type]++; });
   const geo = new THREE.BoxGeometry(1, 1, 1);
-  const m4 = new THREE.Matrix4();
   for(const type of ['slab', 'tower', 'podium', 'landmark']){
     const list = all.filter(it => it.type === type);
     if(!list.length) continue;
     const mesh = new THREE.InstancedMesh(geo, makeBuildingMaterial(), list.length);
     mesh.name = 'city-' + type;
-    list.forEach((it, i) => {
-      m4.makeScale(it.w, it.h, it.d);
-      m4.setPosition(it.x, it.h / 2, it.z);
-      mesh.setMatrixAt(i, m4);
-    });
+    list.forEach((it, i) => setInst(mesh, i, it.x, it.z, it.w, it.h, it.d, it.rot));
     mesh.instanceMatrix.needsUpdate = true;
     mesh.castShadow = false;
     mesh.receiveShadow = false;
     group.add(mesh);
   }
+  group.add(makeRealMesh(real));
 
+  const roads = makeRoads();
+  if(roads) group.add(roads);
+  const plant = makePlant();
+  if(plant) group.add(plant);
   group.add(makeBaseMesh(all));
   group.add(makeGreenMesh());
   group.add(makeViaduct());
   group.add(sil.mesh);
   scene.add(group);
 
-  const stats = { placed: all.length, rejected: rejected + sil.skipped, byType, instances: all };
+  const stats = {
+    placed: all.length,
+    rejected: rejected + sil.skipped,
+    byType,
+    instances: all,
+    real: {
+      count: real.length,
+      compounds: COMPOUNDS.map(c => ({
+        id: c.id, name: c.name, kind: c.kind, count: c.buildings.length,
+      })),
+    },
+    surroundings: SURROUNDINGS,
+    viaductZ: VIADUCT_Z,
+    extent: EXTENT,
+    plant: PLANT ? {
+      name: PLANT.name,
+      halls: PLANT.halls.length,
+      towers: PLANT.towers.length,
+      tanks: PLANT.tanks.length,
+      stacks: PLANT.stacks.length,
+    } : null,
+  };
   return { group, stats };
 }

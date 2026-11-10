@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SITE_W, SITE_D, SITE_LIFT } from './constants.js';
+import { SITE_W, SITE_D, SITE_LIFT, CANAL_X, WORLD_HALF } from './constants.js';
 import { createSite, drawMeadow } from './siteTexture.js';
 import { waterMat } from './theme.js';
 
@@ -29,22 +29,30 @@ export function createGround(scene, buildings, renderer){
   const outerNightTex = drawMeadow(false);
   const outerDayTex = drawMeadow(true);
   const outer = new THREE.Mesh(
-    new THREE.PlaneGeometry(1600, 1600),
+    new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2),
     new THREE.MeshBasicMaterial({ map: outerNightTex })
   );
+  outer.name = 'meadow';
   outer.rotation.x = -Math.PI/2;
   outer.position.y = -0.35;
   scene.add(outer);
 
   const riverMat = waterMat(0x0a2e44, 0x4e8099);
-  /* 电厂河在东路跨河桥处留洞(x 100..120): 水面 y0.06 与桥面顶齐平, 靠留洞避免叠层 */
+  /* 电厂河在东路跨河桥处留洞(x 100..120): 水面 y0.06 与桥面顶齐平, 靠留洞避免叠层。
+   * 西端接运河东岸, 东端到场景边界 */
   const riverGrp = new THREE.Group();
-  [[-135, 470], [360, 480]].forEach(([cx, w])=>{
+  const eastBank = CANAL_X + 85;
+  [[(eastBank + 100) / 2, 100 - eastBank], [(120 + WORLD_HALF) / 2, WORLD_HALF - 120]].forEach(([cx, w])=>{
     const seg = new THREE.Mesh(new THREE.PlaneGeometry(w, 40), riverMat);
     seg.rotation.x = -Math.PI/2;
     seg.position.set(cx, 0.06, -161);
     riverGrp.add(seg);
   });
+  /* 电厂河东折段: 沿顾扬路东侧向南（小区东界沿电厂河） */
+  const bend = new THREE.Mesh(new THREE.PlaneGeometry(30, 460), riverMat);
+  bend.rotation.x = -Math.PI/2;
+  bend.position.set(132, 0.06, 70);
+  riverGrp.add(bend);
   scene.add(riverGrp);
 
   function setGroundMaps(day){

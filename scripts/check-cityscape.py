@@ -9,57 +9,63 @@ PROBE = r"""async () => {
   const c = window.__MODEL && window.__MODEL.cityscape;
   if (!c || !c.stats) return { ready: false };
   const s = c.stats;
-  const hills = [[330,-350,120],[450,150,140],[300,470,130],
-                 [-95,590,150],[-660,-640,170],[560,480,130]];
-  const mtns = [[-805,-575,260],[288,-874,300],[805,-483,240],[897,230,260],
-                [575,782,280],[-518,874,300],[-909,345,260]];
-  const disc = (x,z,cx,cz,r) => Math.hypot(x-cx,z-cz) < r;
+  const S = s.surroundings;
+  const canal = S.meta.canal;
+  const segDist = (x,z,x0,z0,x1,z1) => {
+    const vx = x1-x0, vz = z1-z0, L2 = vx*vx+vz*vz;
+    const t = L2 ? Math.max(0, Math.min(1, ((x-x0)*vx+(z-z0)*vz)/L2)) : 0;
+    return Math.hypot(x-(x0+t*vx), z-(z0+t*vz));
+  };
+  const inPoly = (x,z,poly) => {
+    let inside = false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const [xi,zi]=poly[i],[xj,zj]=poly[j];
+      if((zi>z)!==(zj>z) && x < (xj-xi)*(z-zi)/(zj-zi)+xi) inside = !inside;
+    }
+    return inside;
+  };
   const forbidden = (x,z) =>
     (Math.abs(x) < 140 && Math.abs(z) < 210) ||
-    (x > -460 && x < -240) ||
-    Math.abs(x - 110) < 25 ||
-    Math.abs(z - 150) < 25 ||
-    Math.abs(z + 161) < 28 ||
-    hills.some(h => disc(x,z,h[0],h[1],h[2])) ||
-    mtns.some(m => disc(x,z,m[0],m[1],m[2]));
+    (Math.abs(x - canal.center) < canal.width/2 + 40) ||
+    (Math.abs(z - s.viaductZ) < 26) ||
+    S.compounds.some(cp => inPoly(x,z,cp.poly)) ||
+    (S.greenZones||[]).some(g => inPoly(x,z,g.poly)) ||
+    (S.clearZones||[]).some(g => inPoly(x,z,g.poly)) ||
+    (S.powerPlant && inPoly(x,z,S.powerPlant.poly)) ||
+    S.roads.some(r => segDist(x,z,r.x0,r.z0,r.x1,r.z1) < r.w/2 + 8) ||
+    S.waters.some(w => segDist(x,z,w.x0,w.z0,w.x1,w.z1) < w.w/2 + 8);
+  const bad = s.instances.filter(i => !i.real && forbidden(i.x,i.z)).length;
+  const nearRoad = (i) =>
+    S.roads.concat(S.waters).some(r => segDist(i.x,i.z,r.x0,r.z0,r.x1,r.z1) < r.w/2 + Math.max(i.w,i.d)/2) ||
+    Math.abs(i.x - canal.center) < canal.width/2 + Math.max(i.w,i.d)/2;
+  const roadWaterHits = s.instances.filter(nearRoad).length;
+  const realInSite = s.instances.filter(i => i.real && Math.abs(i.x) < 140 && Math.abs(i.z) < 210).length;
+
+  const m = window.__MODEL;
+  const canalMesh = m.scene.getObjectByName('canal-water');
+  const meadow = m.scene.getObjectByName('meadow');
+  const named = o => c.group.getObjectByName(o);
+  const green = named('city-green');
+  const viaduct = named('city-viaduct');
+  const deck = named('city-viaduct-deck');
+  const silhouette = named('city-silhouette');
+  const realMesh = named('city-real');
+  const roadsMesh = named('city-real-roads');
+  const planeYs = [];
+  c.group.traverse(o => { if(o.isMesh && o.geometry && o.geometry.type === 'PlaneGeometry')
+    planeYs.push(Math.round(o.position.y * 100) / 100); });
+
+  const texMesh = c.group.children.find(o => o.isInstancedMesh && o.material && o.material.map);
+  m.applyTheme(true, true);
+  const day = texMesh ? texMesh.material.map : null;
+  m.applyTheme(false, true);
+  const night = texMesh ? texMesh.material.map : null;
+  m.applyTheme(true, true);
 
   let instanced = 0, textured = 0;
   c.group.traverse(o => {
     if(o.isInstancedMesh){ instanced++; if(o.material.map && o.material.map.image) textured++; }
   });
-  const named = o => c.group.getObjectByName(o);
-  const roads = named('city-roads');
-  const green = named('city-green');
-  const viaduct = named('city-viaduct');
-  const silhouette = named('city-silhouette');
-  const planeYs = [];
-  c.group.traverse(o => { if(o.isMesh && o.geometry && o.geometry.type === 'PlaneGeometry')
-    planeYs.push(Math.round(o.position.y * 100) / 100); });
-
-  /* 建筑占地包围盒不得与实体道路/河道相交；坐标取自场景实际几何 */
-  const bands = [
-    [-440, -230, -900, 900],   // 运河 + 驳岸 + 滨河绿带
-    [-900, 900, -185, -138],   // 电厂河
-    [-900, 900, 138, 162],     // 南路 / 朱家坝路 + 斜拉桥桥面
-    [98, 122, -900, 900],      // 顾扬路 / 东路
-    [-750, 750, -308, -292],   // 高架桥面
-  ];
-  const roadWaterHits = s.instances.filter(i => bands.some(b =>
-    i.x - i.w/2 < b[1] && i.x + i.w/2 > b[0] &&
-    i.z - i.d/2 < b[3] && i.z + i.d/2 > b[2])).length;
-
-  const west = s.instances.filter(i => i.group === 'west');
-  const westInBox = west.every(i => i.x > -235 && i.x < -145 && i.z > -125 && i.z < 125);
-  const westIntruders = s.instances.filter(i => i.group !== 'west' &&
-    i.x > -235 && i.x < -145 && i.z > -125 && i.z < 125).length;
-
-  const m = window.__MODEL;
-  const firstMesh = c.group.children.find(o => o.isInstancedMesh);
-  m.applyTheme(true, true);
-  const day = firstMesh ? firstMesh.material.map : null;
-  m.applyTheme(false, true);
-  const night = firstMesh ? firstMesh.material.map : null;
-  m.applyTheme(true, true);
 
   m.renderer.render(m.scene, m.camera);
   const withCity = m.renderer.info.render.calls;
@@ -81,22 +87,33 @@ PROBE = r"""async () => {
     ready: true,
     placed: s.placed,
     rejected: s.rejected,
-    bad: s.instances.filter(i => forbidden(i.x, i.z)).length,
+    bad,
     byType: s.byType,
     instanced,
     textured,
     themeSwitches: day !== night && day !== null && night !== null,
-    roadsAbsent: !roads,
+    roadsAbsent: !named('city-roads'),
     greenY: green ? Math.round(green.position.y * 100) / 100 : null,
     viaductY: viaduct ? Math.round(viaduct.position.y * 100) / 100 : null,
+    deckZ: deck ? Math.round(deck.position.z) : null,
     silhouette: silhouette ? silhouette.count : 0,
     forbiddenYs: planeYs.filter(y => [0, 0.02, 0.06, 1.8, 3.0].includes(y)),
     drawDelta: delta,
     idleRenders: idle,
     roadWaterHits,
-    westCount: west.length,
-    westInBox,
-    westIntruders,
+    realInSite,
+    realCount: s.real ? s.real.count : 0,
+    realCompounds: s.real ? s.real.compounds : [],
+    realMeshCount: realMesh ? realMesh.count : 0,
+    roadsMesh: !!roadsMesh,
+    canalX: canalMesh ? Math.round(canalMesh.position.x) : null,
+    meadowW: meadow ? Math.round(meadow.geometry.parameters.width) : null,
+    fogFar: Math.round(m.scene.fog.far),
+    cameraFar: Math.round(m.camera.far),
+    maxDistance: Math.round(m.controls.maxDistance),
+    extent: s.extent,
+    plant: s.plant,
+    plantMesh: !!named('plant-halls') && !!named('plant-cyl'),
   };
 }"""
 
@@ -118,27 +135,43 @@ def main():
         page.wait_for_timeout(2600)
         result = page.evaluate(PROBE)
         browser.close()
-    print("city probe:", result)
+    print("city probe:", {k: v for k, v in result.items() if k != "realCompounds"})
+    comps = result.get("realCompounds") or []
+    print("real compounds:", [(c["name"], c["count"]) for c in comps])
+    names = {c["name"] for c in comps}
     checks = {
         "城市生成器已装配": result.get("ready") is True,
-        "至少 80 栋落位": result.get("placed", 0) >= 80,
+        "至少 500 栋落位": result.get("placed", 0) >= 500,
         "禁建区零命中": result.get("bad", 999) == 0,
         "无 JS 报错": not errors,
         "四类楼型齐备": all(result.get("byType", {}).get(k, 0) > 0
                          for k in ("slab", "tower", "podium", "landmark")),
+        "8 个真实小区": len(comps) == 8,
+        "真实小区楼栋 ≥95": result.get("realCount", 0) >= 95,
+        "关键小区齐备": {"潮和阅江台轩", "月上锦澜府", "宸岸栖月轩", "绿城汀岸印月", "运晓花望府"} <= names,
+        "半山电厂已还原": (result.get("plant") or {}).get("halls", 0) == 7
+                            and (result.get("plant") or {}).get("towers", 0) == 8
+                            and result.get("plantMesh") is True,
+        "真实楼群独立实例化": result.get("realMeshCount", 0) == result.get("realCount", -1),
+        "真实路网已生成": result.get("roadsMesh") is True,
+        "真实楼不压小区本体": result.get("realInSite", 999) == 0,
         "至少 4 个 InstancedMesh": result.get("instanced", 0) >= 4,
         "楼体材质带贴图": result.get("textured", 0) >= 4,
         "日夜切换更换贴图": result.get("themeSwitches") is True,
         "无地块分割线且绿化在 y=-0.30": result.get("roadsAbsent") is True
                                        and result.get("greenY") == -0.30,
-        "高架在 y≈8": result.get("viaductY") is not None and abs(result["viaductY"] - 8) < 0.5,
+        "高架 y≈8 且在南侧远景": result.get("viaductY") is not None
+                                  and abs(result["viaductY"] - 8) < 0.5
+                                  and result.get("deckZ") == 1950,
         "远景剪影存在": result.get("silhouette", 0) > 0,
         "无既有共面 y 值": result.get("forbiddenYs") == [],
         "draw call 增量 ≤20": result.get("drawDelta", 999) <= 20,
         "闲置零渲染": result.get("idleRenders", 999) == 0,
-        "西侧组团至少 8 栋": result.get("westCount", 0) >= 8,
-        "西侧组团都在地块内": result.get("westInBox") is True,
-        "西侧地块无其他楼群": result.get("westIntruders", 999) == 0,
+        "运河在 x≈-1000": result.get("canalX") is not None and abs(result["canalX"] + 1000) <= 15,
+        "地面扩到 ≥5000": result.get("meadowW", 0) >= 5000,
+        "雾/相机已扩展": result.get("fogFar", 0) >= 2000
+                          and result.get("cameraFar", 0) >= 8000
+                          and result.get("maxDistance", 0) >= 900,
         "建筑不压道路/河道": result.get("roadWaterHits", 999) == 0,
     }
     for name, ok in checks.items():

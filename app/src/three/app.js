@@ -55,17 +55,17 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x071019);
-  scene.fog = new THREE.Fog(0x071019, 450, 900);
+  scene.fog = new THREE.Fog(0x071019, 450, 2300);
 
   regColor(scene.background, 0x071019, 0xbcd6ea);
   regColor(scene.fog.color, 0x071019, 0xc2d9ea);
   regNum(scene.fog, 'near', 450, 560);
-  regNum(scene.fog, 'far', 900, 1350);
+  regNum(scene.fog, 'far', 2300, 2900);
   regNum(renderer, 'toneMappingExposure', 1.08, 0.9);
   scene.environment = makeEnvironment(renderer);
   regNum(scene, 'environmentIntensity', 0.03, 0.4);
 
-  const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 1, 2000);
+  const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 1, 8000);
   const HOME_POS = new THREE.Vector3(-190, 265, 340);
   const HOME_TARGET = new THREE.Vector3(-70, 5, 0);
   camera.position.copy(HOME_POS);
@@ -74,7 +74,7 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   controls.enableDamping = true;
   controls.dampingFactor = 0.12;
   controls.minDistance = 80;
-  controls.maxDistance = 620;
+  controls.maxDistance = 1000;
   controls.maxPolarAngle = Math.PI * 0.485;
   controls.autoRotateSpeed = 0.55;
   controls.enablePan = false;
