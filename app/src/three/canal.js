@@ -76,14 +76,14 @@ export function createCanal(scene, renderer){
   { // 南路: 斜拉桥东端 → 穿过东路, 至顾扬路路口为止（朱家坝路不东延穿电厂）
     const len = 975;
     const r = new THREE.Mesh(roadGeoEW(len), roadTexMat(len));
-    r.position.set(-367.5, 0.12, RZ);
+    r.position.set(-367.5, 0.16, RZ);
     canalGrp.add(r);
   }
-  { // 交叉口补丁: 顶面画四向斑马线 + 停止线(信号灯路口)
+  { // 交叉口补丁: 顶面画四向斑马线 + 停止线(信号灯路口); 抬高至 0.26, 与东路/南路各拉开 ≥10cm
     const asphalt = asphaltMaterial();
-    const patch = new THREE.Mesh(new THREE.BoxGeometry(20.4, 0.24, 20.4),
+    const patch = new THREE.Mesh(new THREE.BoxGeometry(20.4, 0.44, 20.4),
       [asphalt, asphalt, junctionMaterial(maxAniso), asphalt, asphalt, asphalt]);
-    patch.position.set(RX, 0.06, RZ);
+    patch.position.set(RX, 0.04, RZ);
     canalGrp.add(patch);
   }
 
@@ -101,7 +101,7 @@ export function createCanal(scene, renderer){
   canalGrp.add(deckBase);
   [-8.2, 8.2].forEach(zoff=>{
     const rail = new THREE.Mesh(new THREE.BoxGeometry(210, 0.9, 0.6), railWhite);
-    rail.position.set(CANAL_X, 2.3, RZ + zoff);
+    rail.position.set(CANAL_X, 2.2, RZ + zoff);   // 底面 1.75 沉入桥面顶 1.8, 避免 5cm 缝
     canalGrp.add(rail);
   });
   [[CANAL_X + 105, CANAL_X + 145, -0.0375], [CANAL_X - 105, CANAL_X - 145, 0.0375]].forEach(([x1, x2, rot])=>{

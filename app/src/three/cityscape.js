@@ -172,31 +172,40 @@ function makeRealMesh(list){
 }
 
 /* ---------- 真实路网: 双向四车道, 逐条贴图 ----------
- * 东西向顶 0.20 / 南北向顶 0.13(两层高度错开, 交叉口不共面) */
+ * 全路网同一顶高 0.26（高于东路 0.06 / 南路 0.16 / 电厂河水面 ≥10cm）；
+ * 南北向在每条东西向城市路处断开、与其路缘齐平衔接, 交叉口不再叠面 */
 function makeRoads(maxAniso){
   const list = ROADS.filter(r => r.render);
   if(!list.length) return null;
   const grp = new THREE.Group(); grp.name = 'city-roads';
   const asphalt = asphaltMaterial();
-  const TH = 0.10, NS_TOP = 0.13, EW_TOP = 0.20;
-  const add = (cx, cz, w, L, alongU, topY) => {
-    const geo = new THREE.BoxGeometry(alongU ? L : w, TH, alongU ? w : L);
+  const TOP = 0.26, DEPTH = 0.70;               // 底面 -0.44, 沉入草甸(-0.35)以下不悬空
+  const ewRoads = list.filter(r => r.x0 !== r.x1);
+  const add = (cx, cz, w, L, alongU) => {
+    const geo = new THREE.BoxGeometry(alongU ? L : w, DEPTH, alongU ? w : L);
     const m = new THREE.Mesh(geo,
       [asphalt, asphalt, roadSurfaceMaterial(L, alongU, maxAniso), asphalt, asphalt, asphalt]);
-    m.position.set(cx, topY - TH / 2, cz);
+    m.position.set(cx, TOP - DEPTH / 2, cz);
     m.castShadow = false; m.receiveShadow = false;
     grp.add(m);
   };
   for(const r of list){
-    const ew = r.x0 !== r.x1;
-    if(ew){ add((r.x0 + r.x1) / 2, r.z0, r.w, Math.abs(r.x1 - r.x0), true, EW_TOP); continue; }
-    /* 南北向跨南路(朱家坝路 z=150, x -915..120)处断开, 避免与南路(0.12)近共面 */
+    if(r.x0 !== r.x1){ add((r.x0 + r.x1) / 2, r.z0, r.w, Math.abs(r.x1 - r.x0), true); continue; }
     const lo = Math.min(r.z0, r.z1), hi = Math.max(r.z0, r.z1);
-    const spans = r.x0 >= -915 && r.x0 <= 120 && lo < 150 && hi > 150;
-    const zs = spans ? [[lo, 150 - r.w / 2 - 3], [150 + r.w / 2 + 3, hi]] : [[lo, hi]];
-    for(const [z0, z1] of zs){
+    const cuts = ewRoads
+      .filter(e => r.x0 >= Math.min(e.x0, e.x1) && r.x0 <= Math.max(e.x0, e.x1))
+      .map(e => [e.z0 - e.w / 2, e.z0 + e.w / 2])
+      .sort((a, b) => a[0] - b[0]);
+    let cur = lo;
+    const segs = [];
+    for(const [c0, c1] of cuts){
+      if(c0 > cur) segs.push([cur, Math.min(c0, hi)]);
+      cur = Math.max(cur, c1);
+    }
+    if(cur < hi) segs.push([cur, hi]);
+    for(const [z0, z1] of segs){
       if(z1 - z0 < 2) continue;
-      add(r.x0, (z0 + z1) / 2, r.w, z1 - z0, false, NS_TOP);
+      add(r.x0, (z0 + z1) / 2, r.w, z1 - z0, false);
     }
   }
   return grp;
@@ -375,11 +384,11 @@ function makePlant(){
   const pathMat = flatMat(0x8a8574, 0xd8d4c2);
   const disc = new THREE.Mesh(new THREE.CircleGeometry(bg.r, 8), fieldMat);
   disc.rotation.x = -Math.PI / 2; disc.rotation.z = Math.PI / 8;
-  disc.position.set(bg.x, 0.06, bg.z);
+  disc.position.set(bg.x, 0.14, bg.z);
   grp.add(disc);
   const ring = new THREE.Mesh(new THREE.RingGeometry(bg.r * 0.66, bg.r * 0.78, 8), pathMat);
   ring.rotation.x = -Math.PI / 2; ring.rotation.z = Math.PI / 8;
-  ring.position.set(bg.x, 0.08, bg.z);
+  ring.position.set(bg.x, 0.25, bg.z);
   grp.add(ring);
   const spokes = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), pathMat, 8);
   spokes.name = 'plant-bagua';
@@ -387,7 +396,7 @@ function makePlant(){
     const a = i * Math.PI / 4;
     const len = bg.r * 0.62;
     _q.setFromEuler(_e.set(0, a, 0));
-    _v.set(bg.x + Math.sin(a) * len / 2, 0.1, bg.z + Math.cos(a) * len / 2);
+    _v.set(bg.x + Math.sin(a) * len / 2, 0.25, bg.z + Math.cos(a) * len / 2);
     _s.set(3.2, 0.12, len);
     _m4.compose(_v, _q, _s); spokes.setMatrixAt(i, _m4);
   }

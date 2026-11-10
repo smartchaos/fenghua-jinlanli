@@ -13,6 +13,7 @@ export function createGround(scene, buildings, renderer){
   const siteMat = new THREE.MeshStandardMaterial({ map: siteNight.tex, roughness: 0.96, metalness: 0.02 });
   const site = new THREE.Mesh(new THREE.PlaneGeometry(SITE_W, SITE_D), siteMat);
   site.rotation.x = -Math.PI/2;
+  site.position.y = -0.04;          // 压低底图, 与东路路面(0.06)/南路(0.16)拉开 ≥10cm
   site.receiveShadow = true;
   scene.add(site);
 
@@ -39,14 +40,15 @@ export function createGround(scene, buildings, renderer){
   scene.add(outer);
 
   const riverMat = waterMat(0x0a2e44, 0x4e8099);
-  /* 电厂河按卫星折线: 西段沿小区北侧, 出顾扬路后向东南弯; 桥位(x 100..120)留洞避免叠层 */
+  /* 电厂河按卫星折线: 西段沿小区北侧, 出顾扬路后向东南弯; 桥位(x 100..120)留洞避免叠层。
+   * 相邻段在接缝处本有重叠, 交错抬高 16cm 避免同高共面闪烁 */
   const riverGrp = new THREE.Group();
-  SURROUNDINGS.waters.forEach(w=>{
+  SURROUNDINGS.waters.forEach((w, i)=>{
     const dx = w.x1 - w.x0, dz = w.z1 - w.z0, len = Math.hypot(dx, dz);
     const seg = new THREE.Mesh(new THREE.PlaneGeometry(w.w, len), riverMat);
     seg.rotation.x = -Math.PI/2;
     seg.rotation.z = Math.atan2(-dx, -dz);
-    seg.position.set((w.x0 + w.x1)/2, 0.06, (w.z0 + w.z1)/2);
+    seg.position.set((w.x0 + w.x1)/2, i % 2 === 0 ? 0.06 : -0.10, (w.z0 + w.z1)/2);
     riverGrp.add(seg);
   });
   scene.add(riverGrp);

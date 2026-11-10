@@ -178,8 +178,8 @@ export function createStreetLamps(parent, lines, opts = {}){
   const n = spots.length;
   if(!n) return null;
 
-  const poleGeo = new THREE.CylinderGeometry(0.13, 0.2, 8.6, 6);
-  poleGeo.translate(0, 4.3, 0);
+  const poleGeo = new THREE.CylinderGeometry(0.13, 0.2, 9.2, 6);
+  poleGeo.translate(0, 3.9, 0);          // 底端 -0.7, 埋入草甸(-0.35)/底图(-0.04)以下不悬空
   const armGeo = new THREE.CylinderGeometry(0.085, 0.085, 2.7, 5);
   armGeo.rotateZ(-Math.PI / 2); armGeo.translate(1.35, 8.16, 0);
   const headGeo = new THREE.BoxGeometry(1.2, 0.17, 0.46);
@@ -261,8 +261,8 @@ export function createTrafficLights(parent, lines, opts = {}){
   });
 
   const N = nodes.length;
-  const poleGeo = new THREE.CylinderGeometry(0.2, 0.26, 6.8, 6);
-  poleGeo.translate(0, 3.4, 0);
+  const poleGeo = new THREE.CylinderGeometry(0.2, 0.26, 7.4, 6);
+  poleGeo.translate(0, 3.1, 0);          // 底端 -0.6, 埋入地面以下不悬空
   const armGeo = new THREE.CylinderGeometry(0.11, 0.11, 1, 5); armGeo.rotateZ(-Math.PI / 2);
   const headGeo = new THREE.BoxGeometry(0.66, 1.86, 0.46);
   const lampGeo = new THREE.CircleGeometry(0.2, 10); lampGeo.rotateY(-Math.PI / 2);
