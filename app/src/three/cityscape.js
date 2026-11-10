@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mulberry32 } from './rng.js';
 import { WORLD_HALF } from './constants.js';
 import { regColor, flatMat, themedMats, grainOverlay } from './theme.js';
+import { asphaltMaterial, roadSurfaceMaterial } from './roads.js';
 import SURROUNDINGS from './surroundings.json';
 
 const CITY = {
@@ -170,24 +171,35 @@ function makeRealMesh(list){
   return mesh;
 }
 
-/* ---------- 真实路网 ---------- */
-function makeRoads(){
+/* ---------- 真实路网: 双向四车道, 逐条贴图 ----------
+ * 东西向顶 0.20 / 南北向顶 0.13(两层高度错开, 交叉口不共面) */
+function makeRoads(maxAniso){
   const list = ROADS.filter(r => r.render);
   if(!list.length) return null;
-  const mesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 1, 1), flatMat(0x101317, 0x3d4248), list.length);
-  mesh.name = 'city-real-roads';
-  list.forEach((r, i) => {
-    const dx = r.x1 - r.x0, dz = r.z1 - r.z0, len = Math.hypot(dx, dz);
-    _e.set(0, Math.atan2(-dz, dx), 0); _q.setFromEuler(_e);
-    _v.set((r.x0 + r.x1) / 2, 0.04, (r.z0 + r.z1) / 2);
-    _s.set(len, 0.1, r.w);
-    _m4.compose(_v, _q, _s);
-    mesh.setMatrixAt(i, _m4);
-  });
-  mesh.instanceMatrix.needsUpdate = true;
-  mesh.castShadow = false; mesh.receiveShadow = false;
-  return mesh;
+  const grp = new THREE.Group(); grp.name = 'city-roads';
+  const asphalt = asphaltMaterial();
+  const TH = 0.10, NS_TOP = 0.13, EW_TOP = 0.20;
+  const add = (cx, cz, w, L, alongU, topY) => {
+    const geo = new THREE.BoxGeometry(alongU ? L : w, TH, alongU ? w : L);
+    const m = new THREE.Mesh(geo,
+      [asphalt, asphalt, roadSurfaceMaterial(L, alongU, maxAniso), asphalt, asphalt, asphalt]);
+    m.position.set(cx, topY - TH / 2, cz);
+    m.castShadow = false; m.receiveShadow = false;
+    grp.add(m);
+  };
+  for(const r of list){
+    const ew = r.x0 !== r.x1;
+    if(ew){ add((r.x0 + r.x1) / 2, r.z0, r.w, Math.abs(r.x1 - r.x0), true, EW_TOP); continue; }
+    /* 南北向跨南路(朱家坝路 z=150, x -915..120)处断开, 避免与南路(0.12)近共面 */
+    const lo = Math.min(r.z0, r.z1), hi = Math.max(r.z0, r.z1);
+    const spans = r.x0 >= -915 && r.x0 <= 120 && lo < 150 && hi > 150;
+    const zs = spans ? [[lo, 150 - r.w / 2 - 3], [150 + r.w / 2 + 3, hi]] : [[lo, hi]];
+    for(const [z0, z1] of zs){
+      if(z1 - z0 < 2) continue;
+      add(r.x0, (z0 + z1) / 2, r.w, z1 - z0, false, NS_TOP);
+    }
+  }
+  return grp;
 }
 
 /* ---------- 程序化城市填充 ---------- */
@@ -258,6 +270,13 @@ function makeViaduct(){
   deck.position.set(0, 0, VIADUCT_Z);
   deck.castShadow = false; deck.receiveShadow = false;
   grp.add(deck);
+  const railMat = flatMat(0x8f959d, 0xf2f2ee);   // 白色护栏
+  [-5.75, 5.75].forEach(zoff => {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(WORLD_HALF * 2, 1.0, 0.5), railMat);
+    rail.position.set(0, 0.80, VIADUCT_Z + zoff);
+    rail.castShadow = false; rail.receiveShadow = false;
+    grp.add(rail);
+  });
   const xs = [];
   for(let x = -WORLD_HALF + 40; x <= WORLD_HALF - 40; x += 60) xs.push(x);
   const piers = new THREE.InstancedMesh(
@@ -378,7 +397,8 @@ function makePlant(){
   return grp;
 }
 
-export function createCityscape(scene){
+export function createCityscape(scene, renderer){
+  const maxAniso = renderer ? renderer.capabilities.getMaxAnisotropy() : 4;
   const group = new THREE.Group();
   group.name = 'cityscape';
   const rnd = mulberry32(CITY.seed);
@@ -403,7 +423,7 @@ export function createCityscape(scene){
   }
   group.add(makeRealMesh(real));
 
-  const roads = makeRoads();
+  const roads = makeRoads(maxAniso);
   if(roads) group.add(roads);
   const plant = makePlant();
   if(plant) group.add(plant);

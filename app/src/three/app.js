@@ -5,6 +5,7 @@ import { regColor, regNum, applyFaders, setThemedMaps } from './theme.js';
 import { makeSky, makeSkyDome } from './sky.js';
 import { createGround } from './ground.js';
 import { createCanal } from './canal.js';
+import { createRoadFurniture } from './roads.js';
 import { createVegetation, createCanalTrees, createWilds, createBoats, createCanalLabel, createWaterPlay, createGate } from './wilds.js';
 import { createBuildings } from './buildings.js';
 import { createInteraction } from './interaction.js';
@@ -119,7 +120,8 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   createVegetation(scene, ground.treeSpots);
   createCanalTrees(canalGrp);
   createWilds(canalGrp);
-  const cityscape = createCityscape(scene);
+  const cityscape = createCityscape(scene, renderer);
+  createRoadFurniture(scene);   // 全路网路灯 + 信号灯(实例化)
   createBoats(canalGrp);
   createCanalLabel(canalGrp);
   createWaterPlay(scene);

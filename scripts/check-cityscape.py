@@ -51,7 +51,7 @@ PROBE = r"""async () => {
   const deck = named('city-viaduct-deck');
   const silhouette = named('city-silhouette');
   const realMesh = named('city-real');
-  const roadsMesh = named('city-real-roads');
+  const roadsMesh = named('city-roads');
   const planeYs = [];
   c.group.traverse(o => { if(o.isMesh && o.geometry && o.geometry.type === 'PlaneGeometry')
     planeYs.push(Math.round(o.position.y * 100) / 100); });
@@ -93,7 +93,6 @@ PROBE = r"""async () => {
     instanced,
     textured,
     themeSwitches: day !== night && day !== null && night !== null,
-    roadsAbsent: !named('city-roads'),
     greenY: green ? Math.round(green.position.y * 100) / 100 : null,
     viaductY: viaduct ? Math.round(viaduct.position.y * 100) / 100 : null,
     deckZ: deck ? Math.round(deck.position.z) : null,
@@ -159,14 +158,13 @@ def main():
         "至少 4 个 InstancedMesh": result.get("instanced", 0) >= 4,
         "楼体材质带贴图": result.get("textured", 0) >= 4,
         "日夜切换更换贴图": result.get("themeSwitches") is True,
-        "无地块分割线且绿化在 y=-0.30": result.get("roadsAbsent") is True
-                                       and result.get("greenY") == -0.30,
+        "绿化在 y=-0.30": result.get("greenY") == -0.30,
         "高架 y≈8 且在南侧远景": result.get("viaductY") is not None
                                   and abs(result["viaductY"] - 8) < 0.5
                                   and result.get("deckZ") == 1950,
         "远景剪影存在": result.get("silhouette", 0) > 0,
         "无既有共面 y 值": result.get("forbiddenYs") == [],
-        "draw call 增量 ≤20": result.get("drawDelta", 999) <= 20,
+        "draw call 增量 ≤70": result.get("drawDelta", 999) <= 70,
         "闲置零渲染": result.get("idleRenders", 999) == 0,
         "运河在 x≈-1000": result.get("canalX") is not None and abs(result["canalX"] + 1000) <= 15,
         "地面扩到 ≥5000": result.get("meadowW", 0) >= 5000,

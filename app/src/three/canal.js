@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RX, RZ, CANAL_X, WORLD_HALF } from './constants.js';
-import { flatMat, themedMats, waterMat } from './theme.js';
+import { flatMat, waterMat } from './theme.js';
+import { roadSurfaceMaterial, junctionMaterial, asphaltMaterial } from './roads.js';
 
 /* ---------- 京杭大运河（西侧真实 1km）+ 电厂河 + 路网 + 双桥 + 红绿灯 ---------- */
 export function createCanal(scene, renderer){
@@ -35,43 +36,9 @@ export function createCanal(scene, renderer){
     canalGrp.add(belt);
   });
 
-  /* ---------- 沥青路网: 东路南北贯通, 南路西接斜拉桥, 交叉口红绿灯 ---------- */
-  function roadTexMat(len){
-    const draw = day=>{
-      const cv = document.createElement('canvas'); cv.width = 64; cv.height = 512;
-      const g = cv.getContext('2d');
-      g.fillStyle = day ? '#3d4248' : '#101317'; g.fillRect(0, 0, 64, 512);
-      g.fillStyle = day ? 'rgba(255,255,255,.92)' : 'rgba(228,235,242,.6)';
-      g.fillRect(3, 0, 3, 512); g.fillRect(58, 0, 3, 512);       // 边线
-      for(let y = 12; y < 512; y += 64) g.fillRect(30, y, 3, 32); // 中央虚线
-      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-      t.anisotropy = maxAniso;
-      t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, len/80);
-      return t;
-    };
-    const m = new THREE.MeshBasicMaterial({ map: draw(false) });
-    m.userData.nightTex = draw(false); m.userData.dayTex = draw(true);
-    return m;
-  }
-  function roadTexMatX(len){   // 纹理长轴沿 u(盒体顶面用): 边线在 v 两侧, 虚线沿 u
-    const draw = day=>{
-      const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64;
-      const g = cv.getContext('2d');
-      g.fillStyle = day ? '#3d4248' : '#101317'; g.fillRect(0, 0, 512, 64);
-      g.fillStyle = day ? 'rgba(255,255,255,.92)' : 'rgba(228,235,242,.6)';
-      g.fillRect(0, 3, 512, 3); g.fillRect(0, 58, 512, 3);       // 边线
-      for(let x = 12; x < 512; x += 64) g.fillRect(x, 30, 32, 3); // 中央虚线
-      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-      t.anisotropy = maxAniso;
-      t.wrapS = THREE.RepeatWrapping; t.repeat.set(len/80, 1);
-      return t;
-    };
-    const m = new THREE.MeshBasicMaterial({ map: draw(false) });
-    m.userData.nightTex = draw(false); m.userData.dayTex = draw(true);
-    return m;
-  }
-  // 道路纹理材质与 flatMat 同构(日夜双贴图), 直接进 themedMats 随主题切换
-  function regRoadTex(m){ themedMats.push(m); return m; }
+  /* ---------- 沥青路网: 双向四车道(边线+车道虚线+中央双黄), 东路南北贯通, 南路西接斜拉桥 ---------- */
+  const roadTexMat = len => roadSurfaceMaterial(len, false, maxAniso);   // 平面/南北盒体: 长轴沿 v
+  const roadTexMatX = len => roadSurfaceMaterial(len, true, maxAniso);   // 东西向盒体顶面: 长轴沿 u
   function roadGeo(len){
     const geo = new THREE.PlaneGeometry(20, len);
     geo.rotateX(-Math.PI/2);
@@ -85,7 +52,7 @@ export function createCanal(scene, renderer){
 
   /* 东路: 南北延伸至远方, 止于跨河桥两端(桥面承接), 避免与桥面叠层 */
   [[-1395, 2410], [1234, 2732]].forEach(([cz, len])=>{
-    const r = new THREE.Mesh(roadGeo(len), regRoadTex(roadTexMat(len)));
+    const r = new THREE.Mesh(roadGeo(len), roadTexMat(len));
     r.position.set(RX, 0.06, cz);
     canalGrp.add(r);
   });
@@ -96,7 +63,7 @@ export function createCanal(scene, renderer){
     /* 道路纹理直接作盒体顶面材质(+y 面), 消除独立贴图平面与桥面的 z-fighting */
     const deck = new THREE.Mesh(
       new THREE.BoxGeometry(20, 0.9, SPAN),
-      [bridgeW, bridgeW, regRoadTex(roadTexMat(SPAN)), bridgeW, bridgeW, bridgeW]
+      [bridgeW, bridgeW, roadTexMat(SPAN), bridgeW, bridgeW, bridgeW]
     );
     deck.position.set(RX, -0.39, CZR);          // 顶面 y0.06, 与路面齐平
     canalGrp.add(deck);
@@ -106,80 +73,41 @@ export function createCanal(scene, renderer){
       canalGrp.add(rail);
     });
   }
-  { // 南路: 斜拉桥东端 → 穿过东路; 西段接桥, 东段延伸到场景边界
+  { // 南路: 斜拉桥东端 → 穿过东路, 至顾扬路路口为止（朱家坝路不东延穿电厂）
     const len = 975;
-    const r = new THREE.Mesh(roadGeoEW(len), regRoadTex(roadTexMat(len)));
+    const r = new THREE.Mesh(roadGeoEW(len), roadTexMat(len));
     r.position.set(-367.5, 0.12, RZ);
     canalGrp.add(r);
-    const lenE = WORLD_HALF - 120;
-    const rE = new THREE.Mesh(roadGeoEW(lenE), regRoadTex(roadTexMat(lenE)));
-    rE.position.set((120 + WORLD_HALF) / 2, 0.12, RZ);
-    canalGrp.add(rE);
   }
-  { // 交叉口无缝补丁: 顶面贴图画入东路(主路)贯穿中线(直行优先), 南路(支路)止于路口西缘
-    const draw = day=>{
-      const cv = document.createElement('canvas'); cv.width = cv.height = 128;
-      const g = cv.getContext('2d');
-      g.fillStyle = day ? '#3d4248' : '#101317'; g.fillRect(0, 0, 128, 128);
-      g.fillStyle = day ? 'rgba(255,255,255,.92)' : 'rgba(228,235,242,.6)';
-      g.fillRect(61, 0, 6, 128);   // 南北向实线, 宽 0.95m 与路段虚线同宽
-      g.fillRect(115, 0, 6, 128);  // 东侧边线, 对齐路段纹理 u=58..61/64 (x 8.1..9.1); 西侧为南路支路口开口, 保持断开
-      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-      t.anisotropy = maxAniso;
-      return t;
-    };
-    const topMat = new THREE.MeshBasicMaterial({ map: draw(false) });
-    topMat.userData.nightTex = draw(false); topMat.userData.dayTex = draw(true);
-    const asphalt = flatMat(0x101317, 0x3d4248);
+  { // 交叉口补丁: 顶面画四向斑马线 + 停止线(信号灯路口)
+    const asphalt = asphaltMaterial();
     const patch = new THREE.Mesh(new THREE.BoxGeometry(20.4, 0.24, 20.4),
-      [asphalt, asphalt, regRoadTex(topMat), asphalt, asphalt, asphalt]);
+      [asphalt, asphalt, junctionMaterial(maxAniso), asphalt, asphalt, asphalt]);
     patch.position.set(RX, 0.06, RZ);
     canalGrp.add(patch);
   }
-  /* 红绿灯（南路×东路交叉口, 对角两台） */
-  const tlPoleMat = flatMat(0x17191d, 0x3a3f45);
-  const tlRed = flatMat(0xff4530, 0xff4530);
-  const tlYellow = flatMat(0x8a6d1c, 0xffb340);
-  const tlGreen = flatMat(0x1f7a30, 0x32d74b);
-  function makeTrafficLight(lit){
-    const g = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 7, 6), tlPoleMat);
-    pole.position.y = 3.5; g.add(pole);
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 4.6, 5), tlPoleMat);
-    arm.rotation.z = Math.PI/2; arm.position.set(2.3, 6.9, 0); g.add(arm);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.9, 0.5), tlPoleMat);
-    head.position.set(4.4, 6.1, 0); g.add(head);
-    [['red', tlRed], ['yellow', tlYellow], ['green', tlGreen]].forEach(([k, mat], i)=>{
-      const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.21, 10), k === lit ? mat : tlPoleMat);
-      lamp.rotation.y = -Math.PI/2;
-      lamp.position.set(4.05, 6.75 - i*0.62, 0);
-      g.add(lamp);
-    });
-    return g;
-  }
-  const tl1 = makeTrafficLight('red'); tl1.position.set(RX-14, 0, RZ-13); canalGrp.add(tl1);
-  const tl2 = makeTrafficLight('green'); tl2.position.set(RX+14, 0, RZ+13); tl2.rotation.y = Math.PI; canalGrp.add(tl2);
 
-  /* 斜拉桥: 门式桥塔 + 扇形拉索; 桥面与南路同款沥青(白边线+中央虚线) */
+  /* 斜拉桥: 门式桥塔 + 扇形拉索; 桥面与南路同款沥青(双向四车道), 两侧白色护栏 */
   const bridgeTowerMat = flatMat(0x272c33, 0xc9ced4);
   const bridgeCableMat = flatMat(0x39424c, 0xdde3e8);
   const bridgeAsphalt = flatMat(0x101317, 0x3d4248);   // 与南路同色系沥青
+  const railWhite = flatMat(0x8f959d, 0xf2f2ee);       // 白色护栏
   /* 桥面压低接近路面(底 0.2 / 顶 1.8); 道路纹理直接作盒体顶面材质, 无叠层间隙 */
   const deckBase = new THREE.Mesh(
     new THREE.BoxGeometry(210, 1.6, 17),
-    [bridgeAsphalt, bridgeAsphalt, regRoadTex(roadTexMatX(210)), bridgeAsphalt, bridgeAsphalt, bridgeAsphalt]
+    [bridgeAsphalt, bridgeAsphalt, roadTexMatX(210), bridgeAsphalt, bridgeAsphalt, bridgeAsphalt]
   );
   deckBase.position.set(CANAL_X, 1.0, RZ);
   canalGrp.add(deckBase);
   [-8.2, 8.2].forEach(zoff=>{
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(210, 0.9, 0.6), bridgeTowerMat);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(210, 0.9, 0.6), railWhite);
     rail.position.set(CANAL_X, 2.3, RZ + zoff);
     canalGrp.add(rail);
   });
   [[CANAL_X + 105, CANAL_X + 145, -0.0375], [CANAL_X - 105, CANAL_X - 145, 0.0375]].forEach(([x1, x2, rot])=>{
     const rampBase = new THREE.Mesh(
       new THREE.BoxGeometry(44, 0.8, 17),
-      [bridgeAsphalt, bridgeAsphalt, regRoadTex(roadTexMatX(44)), bridgeAsphalt, bridgeAsphalt, bridgeAsphalt]
+      [bridgeAsphalt, bridgeAsphalt, roadTexMatX(44), bridgeAsphalt, bridgeAsphalt, bridgeAsphalt]
     );
     rampBase.position.set((x1 + x2)/2, 1.02, RZ);
     rampBase.rotation.z = rot;
