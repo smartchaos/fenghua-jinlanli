@@ -118,36 +118,6 @@ function makeWestResidential(rnd){
   return list;
 }
 
-function makeRoadsMesh(){
-  const cv = document.createElement('canvas'); cv.width = cv.height = 1024;
-  const g = cv.getContext('2d');
-  g.clearRect(0, 0, 1024, 1024);
-  const step = 1024 / 12;
-  g.lineWidth = 5;
-  g.strokeStyle = 'rgba(112,114,112,.50)';
-  for(let i = 0; i <= 12; i++){
-    const p = i * step;
-    g.beginPath(); g.moveTo(p, 0); g.lineTo(p, 1024); g.stroke();
-    g.beginPath(); g.moveTo(0, p); g.lineTo(1024, p); g.stroke();
-  }
-  g.strokeStyle = 'rgba(235,233,220,.42)'; g.lineWidth = 1.5; g.setLineDash([12, 18]);
-  for(let i = 0; i <= 12; i++){
-    const p = i * step;
-    g.beginPath(); g.moveTo(p, 0); g.lineTo(p, 1024); g.stroke();
-    g.beginPath(); g.moveTo(0, p); g.lineTo(1024, p); g.stroke();
-  }
-  g.setLineDash([]);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-  /* 与 city-green 同处 y=-0.30: 两者都不写深度、按 renderOrder 定序，避免盖过水面 */
-  const m = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), m);
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.y = -0.30;
-  mesh.name = 'city-roads';
-  mesh.renderOrder = 1;
-  return mesh;
-}
-
 function makeGreenTexture(day){
   const cv = document.createElement('canvas'); cv.width = cv.height = 512;
   const g = cv.getContext('2d');
@@ -271,7 +241,6 @@ export function createCityscape(scene){
 
   group.add(makeBaseMesh(all));
   group.add(makeGreenMesh());
-  group.add(makeRoadsMesh());
   group.add(makeViaduct());
   group.add(sil.mesh);
   scene.add(group);

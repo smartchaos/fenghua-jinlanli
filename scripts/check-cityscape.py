@@ -86,7 +86,7 @@ PROBE = r"""async () => {
     instanced,
     textured,
     themeSwitches: day !== night && day !== null && night !== null,
-    roadsY: roads ? Math.round(roads.position.y * 100) / 100 : null,
+    roadsAbsent: !roads,
     greenY: green ? Math.round(green.position.y * 100) / 100 : null,
     viaductY: viaduct ? Math.round(viaduct.position.y * 100) / 100 : null,
     silhouette: silhouette ? silhouette.count : 0,
@@ -129,7 +129,8 @@ def main():
         "至少 4 个 InstancedMesh": result.get("instanced", 0) >= 4,
         "楼体材质带贴图": result.get("textured", 0) >= 4,
         "日夜切换更换贴图": result.get("themeSwitches") is True,
-        "路网/绿化在 y=-0.30": result.get("roadsY") == -0.30 and result.get("greenY") == -0.30,
+        "无地块分割线且绿化在 y=-0.30": result.get("roadsAbsent") is True
+                                       and result.get("greenY") == -0.30,
         "高架在 y≈8": result.get("viaductY") is not None and abs(result["viaductY"] - 8) < 0.5,
         "远景剪影存在": result.get("silhouette", 0) > 0,
         "无既有共面 y 值": result.get("forbiddenYs") == [],
