@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32 } from './rng.js';
+import { SKY_RADIUS } from './constants.js';
 
 /* 天空穹顶纹理: 夜=星空+月亮, 日=蓝天+太阳+云 */
 export function makeSky(day){
@@ -54,7 +55,7 @@ export function makeSky(day){
 
 export function makeSkyDome(scene, tex){
   const m = new THREE.Mesh(
-    new THREE.SphereGeometry(880, 48, 24),
+    new THREE.SphereGeometry(SKY_RADIUS, 48, 24),
     new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, transparent: true, depthWrite: false })
   );
   m.renderOrder = -1;
