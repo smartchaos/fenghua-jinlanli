@@ -68,6 +68,7 @@ function hitsStatic(x, z, w, d){
     if(polyHit(x, z, g.poly, pad)) return true;
   }
   if(PLANT && polyHit(x, z, PLANT.poly, pad)) return true;
+  if(PLANT && PLANT.auxPoly && polyHit(x, z, PLANT.auxPoly, pad)) return true;
   return false;
 }
 
@@ -86,6 +87,7 @@ export function isForbidden(x, z){
     if(pointInPoly(x, z, g.poly)) return true;
   }
   if(PLANT && pointInPoly(x, z, PLANT.poly)) return true;
+  if(PLANT && PLANT.auxPoly && pointInPoly(x, z, PLANT.auxPoly)) return true;
   for(const road of ROADS){
     if(segDist(x, z, road.x0, road.z0, road.x1, road.z1) < road.w / 2 + 8) return true;
   }
@@ -301,13 +303,13 @@ function makeBaseMesh(all){
   return mesh;
 }
 
-/* ---------- 半山电厂（燃气）：大跨度厂房 + 机力冷却塔/罐群 + 烟囱 + 八卦田 + 操场 ---------- */
+/* ---------- 半山电厂（燃气）：拱康路以东厂区（八卦田/机力冷却塔/主厂房）+ 顾扬路以东库房辅区 ---------- */
 function makePlant(){
   if(!PLANT) return null;
   const grp = new THREE.Group();
   grp.name = 'city-plant';
 
-  /* 厂区地坪（混凝土灰） */
+  /* 厂区地坪（混凝土灰，仅厂区范围） */
   const xs = PLANT.poly.map(p => p[0]), zs = PLANT.poly.map(p => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
   const yardMat = flatMat(0x2b2f31, 0x9fa29c);
@@ -316,8 +318,9 @@ function makePlant(){
   yard.position.set((x0 + x1) / 2, 0.03, (z0 + z1) / 2);
   grp.add(yard);
 
-  const hallMat = new THREE.MeshStandardMaterial({ color: 0xc6cbcd, roughness: 0.9, metalness: 0.05 });
-  regColor(hallMat.color, 0x5f666d, 0xc6cbcd);
+  /* 厂房/库房：浅色墙体 + 深色屋面 */
+  const hallMat = new THREE.MeshStandardMaterial({ color: 0x9ea6aa, roughness: 0.9, metalness: 0.05 });
+  regColor(hallMat.color, 0x4d545b, 0x9ea6aa);
   const halls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), hallMat, PLANT.halls.length);
   halls.name = 'plant-halls';
   PLANT.halls.forEach((h, i) => setInst(halls, i, h.x, h.z, h.w, h.h, h.d, h.rot || 0));
@@ -325,41 +328,53 @@ function makePlant(){
   halls.castShadow = false; halls.receiveShadow = false;
   grp.add(halls);
 
-  const cylMat = new THREE.MeshStandardMaterial({ color: 0xd6d8d4, roughness: 0.85 });
-  regColor(cylMat.color, 0x74787d, 0xdedfda);
-  const cyl = [];
-  PLANT.towers.forEach(t => cyl.push({ x: t.x, z: t.z, r: 13, h: 20 }));
-  PLANT.tanks.forEach(t => cyl.push({ x: t.x, z: t.z, r: 12, h: 7 }));
-  PLANT.stacks.forEach(t => cyl.push({ x: t.x, z: t.z, r: t.r, h: t.h }));
-  const cylMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 14), cylMat, cyl.length);
-  cylMesh.name = 'plant-cyl';
-  cyl.forEach((c, i) => {
-    _q.identity(); _v.set(c.x, c.h / 2, c.z); _s.set(c.r, c.h, c.r);
-    _m4.compose(_v, _q, _s); cylMesh.setMatrixAt(i, _m4);
-  });
-  cylMesh.instanceMatrix.needsUpdate = true;
-  cylMesh.castShadow = false; cylMesh.receiveShadow = false;
-  grp.add(cylMesh);
+  const roofMat = flatMat(0x1f242b, 0x6d737b);
+  const roofs = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), roofMat, PLANT.halls.length);
+  roofs.name = 'plant-roofs';
+  PLANT.halls.forEach((h, i) => setInst(roofs, i, h.x, h.h + 0.9, h.w + 1.5, 1.8, h.d + 1.5, h.rot || 0));
+  roofs.instanceMatrix.needsUpdate = true;
+  roofs.castShadow = false; roofs.receiveShadow = false;
+  grp.add(roofs);
 
+  /* 机力通风冷却塔（两列，顶部圆台风帽） */
+  const towMat = new THREE.MeshStandardMaterial({ color: 0xcfd2ce, roughness: 0.85 });
+  regColor(towMat.color, 0x63686e, 0xd6d8d3);
+  const towers = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.92, 1.06, 1, 14), towMat, PLANT.towers.length);
+  towers.name = 'plant-towers';
+  PLANT.towers.forEach((t, i) => {
+    _q.identity(); _v.set(t.x, 9.5, t.z); _s.set(11, 19, 11);
+    _m4.compose(_v, _q, _s); towers.setMatrixAt(i, _m4);
+  });
+  towers.instanceMatrix.needsUpdate = true;
+  towers.castShadow = false; towers.receiveShadow = false;
+  grp.add(towers);
+
+  /* 八卦田：八角绿地 + 环路 + 八向园路 */
+  const bg = PLANT.bagua;
   const fieldMat = new THREE.MeshStandardMaterial({ color: 0x5f8a4c, roughness: 1 });
   regColor(fieldMat.color, 0x18280f, 0x86b06a);
   const pathMat = flatMat(0x8a8574, 0xd8d4c2);
-  const bg = PLANT.bagua;
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(bg.r, 40), fieldMat);
-  disc.rotation.x = -Math.PI / 2; disc.position.set(bg.x, 0.05, bg.z);
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(bg.r, 8), fieldMat);
+  disc.rotation.x = -Math.PI / 2; disc.rotation.z = Math.PI / 8;
+  disc.position.set(bg.x, 0.06, bg.z);
   grp.add(disc);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(bg.r * 0.70, bg.r * 0.82, 40), pathMat);
-  ring.rotation.x = -Math.PI / 2; ring.position.set(bg.x, 0.07, bg.z);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(bg.r * 0.66, bg.r * 0.78, 8), pathMat);
+  ring.rotation.x = -Math.PI / 2; ring.rotation.z = Math.PI / 8;
+  ring.position.set(bg.x, 0.08, bg.z);
   grp.add(ring);
-  const st = PLANT.stadium;
-  const field = new THREE.Mesh(new THREE.CircleGeometry(1, 36), fieldMat);
-  field.rotation.x = -Math.PI / 2; field.scale.set(st.rx, st.rz, 1);
-  field.position.set(st.x, 0.05, st.z);
-  grp.add(field);
-  const track = new THREE.Mesh(new THREE.RingGeometry(0.86, 1.0, 40), flatMat(0x8a4a3a, 0xc07a5c));
-  track.rotation.x = -Math.PI / 2; track.scale.set(st.rx, st.rz, 1);
-  track.position.set(st.x, 0.07, st.z);
-  grp.add(track);
+  const spokes = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), pathMat, 8);
+  spokes.name = 'plant-bagua';
+  for(let i = 0; i < 8; i++){
+    const a = i * Math.PI / 4;
+    const len = bg.r * 0.62;
+    _q.setFromEuler(_e.set(0, a, 0));
+    _v.set(bg.x + Math.sin(a) * len / 2, 0.1, bg.z + Math.cos(a) * len / 2);
+    _s.set(3.2, 0.12, len);
+    _m4.compose(_v, _q, _s); spokes.setMatrixAt(i, _m4);
+  }
+  spokes.instanceMatrix.needsUpdate = true;
+  spokes.castShadow = false; spokes.receiveShadow = false;
+  grp.add(spokes);
   return grp;
 }
 
@@ -416,8 +431,6 @@ export function createCityscape(scene){
       name: PLANT.name,
       halls: PLANT.halls.length,
       towers: PLANT.towers.length,
-      tanks: PLANT.tanks.length,
-      stacks: PLANT.stacks.length,
     } : null,
   };
   return { group, stats };

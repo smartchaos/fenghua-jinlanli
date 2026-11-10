@@ -32,6 +32,7 @@ PROBE = r"""async () => {
     (S.greenZones||[]).some(g => inPoly(x,z,g.poly)) ||
     (S.clearZones||[]).some(g => inPoly(x,z,g.poly)) ||
     (S.powerPlant && inPoly(x,z,S.powerPlant.poly)) ||
+    (S.powerPlant && S.powerPlant.auxPoly && inPoly(x,z,S.powerPlant.auxPoly)) ||
     S.roads.some(r => segDist(x,z,r.x0,r.z0,r.x1,r.z1) < r.w/2 + 8) ||
     S.waters.some(w => segDist(x,z,w.x0,w.z0,w.x1,w.z1) < w.w/2 + 8);
   const bad = s.instances.filter(i => !i.real && forbidden(i.x,i.z)).length;
@@ -113,7 +114,7 @@ PROBE = r"""async () => {
     maxDistance: Math.round(m.controls.maxDistance),
     extent: s.extent,
     plant: s.plant,
-    plantMesh: !!named('plant-halls') && !!named('plant-cyl'),
+    plantMesh: !!named('plant-halls') && !!named('plant-towers') && !!named('plant-bagua'),
   };
 }"""
 
@@ -149,8 +150,8 @@ def main():
         "8 个真实小区": len(comps) == 8,
         "真实小区楼栋 ≥95": result.get("realCount", 0) >= 95,
         "关键小区齐备": {"潮和阅江台轩", "月上锦澜府", "宸岸栖月轩", "绿城汀岸印月", "运晓花望府"} <= names,
-        "半山电厂已还原": (result.get("plant") or {}).get("halls", 0) == 7
-                            and (result.get("plant") or {}).get("towers", 0) == 8
+        "半山电厂已还原": (result.get("plant") or {}).get("halls", 0) == 9
+                            and (result.get("plant") or {}).get("towers", 0) == 7
                             and result.get("plantMesh") is True,
         "真实楼群独立实例化": result.get("realMeshCount", 0) == result.get("realCount", -1),
         "真实路网已生成": result.get("roadsMesh") is True,

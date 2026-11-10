@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { SITE_W, SITE_D, SITE_LIFT, CANAL_X, WORLD_HALF } from './constants.js';
+import { SITE_W, SITE_D, SITE_LIFT, WORLD_HALF } from './constants.js';
+import SURROUNDINGS from './surroundings.json';
 import { createSite, drawMeadow } from './siteTexture.js';
 import { waterMat } from './theme.js';
 
@@ -38,21 +39,16 @@ export function createGround(scene, buildings, renderer){
   scene.add(outer);
 
   const riverMat = waterMat(0x0a2e44, 0x4e8099);
-  /* 电厂河在东路跨河桥处留洞(x 100..120): 水面 y0.06 与桥面顶齐平, 靠留洞避免叠层。
-   * 西端接运河东岸, 东端到场景边界 */
+  /* 电厂河按卫星折线: 西段沿小区北侧, 出顾扬路后向东南弯; 桥位(x 100..120)留洞避免叠层 */
   const riverGrp = new THREE.Group();
-  const eastBank = CANAL_X + 85;
-  [[(eastBank + 100) / 2, 100 - eastBank], [(120 + WORLD_HALF) / 2, WORLD_HALF - 120]].forEach(([cx, w])=>{
-    const seg = new THREE.Mesh(new THREE.PlaneGeometry(w, 40), riverMat);
+  SURROUNDINGS.waters.forEach(w=>{
+    const dx = w.x1 - w.x0, dz = w.z1 - w.z0, len = Math.hypot(dx, dz);
+    const seg = new THREE.Mesh(new THREE.PlaneGeometry(w.w, len), riverMat);
     seg.rotation.x = -Math.PI/2;
-    seg.position.set(cx, 0.06, -161);
+    seg.rotation.z = Math.atan2(-dx, -dz);
+    seg.position.set((w.x0 + w.x1)/2, 0.06, (w.z0 + w.z1)/2);
     riverGrp.add(seg);
   });
-  /* 电厂河东折段: 沿顾扬路东侧向南（小区东界沿电厂河） */
-  const bend = new THREE.Mesh(new THREE.PlaneGeometry(30, 460), riverMat);
-  bend.rotation.x = -Math.PI/2;
-  bend.position.set(132, 0.06, 70);
-  riverGrp.add(bend);
   scene.add(riverGrp);
 
   function setGroundMaps(day){

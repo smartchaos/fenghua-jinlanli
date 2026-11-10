@@ -176,9 +176,12 @@ def preview():
     # 电厂
     plant = data.get("powerPlant")
     if plant:
-        poly = [scene_to_px(*pt) for pt in plant["poly"]]
-        d.polygon(poly, outline=(230, 120, 255, 230))
-        d.text((poly[0][0] + 3, poly[0][1] + 3), plant["name"], fill=(230, 120, 255, 255))
+        for key, col in (("poly", (230, 120, 255, 230)), ("auxPoly", (255, 150, 40, 220))):
+            if not plant.get(key):
+                continue
+            poly = [scene_to_px(*pt) for pt in plant[key]]
+            d.polygon(poly, outline=col)
+            d.text((poly[0][0] + 3, poly[0][1] + 3), plant["name"] + ("辅区" if key == "auxPoly" else ""), fill=col)
         for h in plant.get("halls", []):
             pts = [scene_to_px(*pt) for pt in rot_rect(h["x"], h["z"], h["w"], h["d"], h.get("rot", 0))]
             d.polygon(pts, outline=(255, 90, 200, 255), fill=(255, 90, 200, 60))
@@ -244,8 +247,10 @@ def check():
                 if point_in_poly(b["x"], b["z"], g["poly"]):
                     errors.append(f"{name} 落在 {g['name']} 内")
             plant = data.get("powerPlant")
-            if plant and point_in_poly(b["x"], b["z"], plant["poly"]):
-                errors.append(f"{name} 落在 {plant['name']} 内")
+            if plant:
+                for pp in [plant["poly"]] + ([plant["auxPoly"]] if plant.get("auxPoly") else []):
+                    if point_in_poly(b["x"], b["z"], pp):
+                        errors.append(f"{name} 落在 {plant['name']} 内")
     # 楼栋重叠（同小区允许相邻，跨小区检查）
     boxes = []
     for ci, comp in enumerate(comps):
