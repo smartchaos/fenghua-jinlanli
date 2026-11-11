@@ -11,8 +11,8 @@ RAW = ROOT / "data" / "raw"
 DATA = ROOT / "data"
 
 TOTAL_HOUSEHOLDS = 478
-SNAPSHOT_DATE = "2026-11-09"   # 数据口径日期
-SNAPSHOT_GROUP_SIZE = 310      # 群快照人数；快照后补录成员在此之上累加
+SNAPSHOT_DATE = "2026-11-11"   # 数据口径日期
+SNAPSHOT_GROUP_SIZE = 316      # 群快照人数；快照后补录成员在此之上累加
 MANUAL_FILE = RAW / "manual-members.csv"
 OVERRIDES_FILE = RAW / "member-overrides.json"
 
@@ -177,6 +177,14 @@ def build_members(seq):
         t = seq[i]
         rs = parse_rooms(t)
         if rs:
+            nxt = seq[i + 1] if i + 1 < len(seq) else ""
+            # 群昵称含空格的成员在成员列表里被拆成「房号 + 后半段」两个 token，实为同一人
+            if nxt and not parse_rooms(nxt):
+                tail_rooms = parse_rooms(GROUP_NICK.get(nxt, ""))
+                if (tail_rooms and tail_rooms[0] == rs[0]) or nxt in JOIN_NAME_TOKENS:
+                    members.append({"nick": t + " " + nxt, "rooms": rs, "note": "合并空格昵称"})
+                    i += 2
+                    continue
             members.append({"nick": t, "rooms": rs, "note": ""})
             i += 1
             continue
