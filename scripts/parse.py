@@ -143,6 +143,18 @@ def extract_pages():
     return pages
 
 
+def snapshot_group_size():
+    """群人数以快照标题为准，避免常量手改后与真实群人数漂移。"""
+    sizes = [
+        int(m.group(1))
+        for f in RAW.glob("dense_*.txt")
+        for m in re.finditer(r"big_title_line_h_view, Value: [^\n]*?\((\d+)\)", f.read_text(encoding="utf-8"))
+    ]
+    if not sizes:
+        raise SystemExit("快照里读不到群人数标题，请确认 data/raw 下有本次采集的 dense_*.txt")
+    return max(sizes)
+
+
 def stitch(pages):
     seq = pages[0][:]
     for p in pages[1:]:
@@ -354,7 +366,8 @@ def dedup_manual(manual, snapshot_members):
 def main():
     print(f"覆盖项：groupNick {len(GROUP_NICK)} / userConfirmed {len(USER_CONFIRMED)} "
           f"/ nickOnly {len(NICK_ONLY)} / noMerge {len(NO_MERGE)}")
-    seq = stitch(extract_pages())
+    pages = extract_pages()
+    seq = stitch(pages)
     members = build_members(seq)
     apply_group_nicknames(members)
     apply_user_confirmed(members)
@@ -368,7 +381,7 @@ def main():
         print(f"补录待确认：{nick} 的房号 {rk} 新快照里已有 {len(nicks)} 人 {nicks}，"
               "若为同住户第二人则保留，若为同一人请从台账删除")
     members.extend(manual)
-    group_size = SNAPSHOT_GROUP_SIZE + len(manual)
+    group_size = snapshot_group_size() + len(manual)
     households = build_households(members)
     manual_keys = {room_key(m["rooms"][0]) for m in manual if m["rooms"]}
     new_keys = manual_keys - base_keys
@@ -429,6 +442,7 @@ def main():
         })
 
     unresolved = sum(1 for m in members if not m["rooms"] and m["nick"] not in NICK_ONLY)
+    nick_completed = sum(1 for m in members if "群昵称补全" in m["note"])
     # 已匹配成员以群人数为权威口径：captured 是含虚拟列表重复渲染的原始记录数，
     # 不能直接当成员数（capturedExtra 即该假象）；按房号归并的户数不受影响。
     identified = group_size - unresolved
@@ -447,6 +461,8 @@ def main():
         "buildings": buildings,
         "floorMatrix": floor_matrix,
         "capturedExtra": len(members) - group_size,
+        "screens": len(pages),
+        "nickCompleted": nick_completed,
     }
     (DATA / "stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -464,6 +480,9 @@ def main():
             "identifiedMembers": identified,
             "unresolved": stats["unresolvedMembers"],
             "inferred": stats["inferredHouseholds"],
+            "screens": stats["screens"],
+            "nickCompleted": stats["nickCompleted"],
+            "capturedExtra": stats["capturedExtra"],
         },
         "buildings": buildings,
         "rooms": [

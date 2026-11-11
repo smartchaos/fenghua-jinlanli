@@ -43,18 +43,38 @@ for (var s=0;s<32;s++){
 rep;
 ```
 
-校验：相邻 `ov` 全 >0；拼接唯一数 ≈ 群人数 − 重名数（2026-11-06：269 唯一 / 303 人）。
+校验：相邻 `ov` 全 >0；拼出的成员数应等于群标题人数（`captured == groupSize`，门禁会卡）。
+唯一昵称数会小于人数——同名成员（同户多人共用「纯房号」备注）是真实的，不要折叠。
 然后 `rm data/raw/dense_*.txt && for f in data/raw/new_dense_*.txt; do mv "$f" "${f#new_}"; done`。
 
 ## 重算与口径
 
-1. 改 `scripts/parse.py` 顶部 `SNAPSHOT_DATE` / `SNAPSHOT_GROUP_SIZE`（= 群标题人数）。
+1. 改 `scripts/parse.py` 顶部 `SNAPSHOT_DATE`；群人数直接读快照标题，不用手改常量。
 2. 快照里房号无法解析的新成员，映射加 `data/raw/member-overrides.json` 的 `userConfirmed`；
    名字+房号被空格拆开但其实是两人时，把名字加 `noMerge`。
-3. `python3 scripts/parse.py`，关注「补录去重/待确认」与 `unresolvedMembers`。
-4. 更新 `report.html` 硬编码数字（hero/KPI 兜底/bar-note/mini-note/口径/页脚日期，JS 会覆盖
-   带 id 的 KPI，但静态文案要手改），`data/app-data.js` 引用版本号 +1。
-5. `cd app && npm run build` 重建 `model.html`。
+3. `python3 scripts/parse.py`。
+4. `cd app && npm run build` 重建 `model.html`（3D 页把数据内联进构建产物，不重建就还是旧名单）。
+5. `python3 scripts/check-data.py` 跑数据门禁，报 FAIL 就不要发布。
+
+`report.html` 的所有数字由 `data/app-data.js` 驱动，缓存版本号由门禁自动对齐，不用手改。
+
+## 数据门禁（`scripts/check-data.py`）
+
+一次跑完，把"要人肉排查"的事自动化。分三档：`[FAIL]` 必须修、`[WARN]` 建议看、`[INFO]` 备案。
+
+- **口径自洽**：快照标题群人数 = 产物群人数 = `captured`（抓到人数 ≠ 群人数即说明漏屏/多算）；
+  户内人数合计 = 已识别成员；已识别 + 未识别 = 群人数；房号清单 = 478 户且无重复。
+- **归属正确**：昵称里写了房号就必须与归属房号一致（抓错并户）；单户入群人数 >6 直接报错。
+- **发布同步**：`model.html` 必须内联当前群人数/户数/口径日期，否则报错提醒重建；
+  `report.html` 必须保留数据占位符（防止有人又把数字写死）。
+- **可疑项**：三人及以上户、未识别成员逐条列出；同户同名只报总数（`--list` 展开）；
+  与上一版对比户数/人数突变超阈值会告警。
+- `--strict` 把 WARN 也当失败（用于发布前卡口）。
+
+**别折叠"同户同名"**：群里很多人把全家备注都设成同一个房号，同一户出现 2~3 个相同昵称
+是真实的（2026-11-11 用户在群里确认「3-801 确实是 3 个」）。多次独立重采结果完全一致也印证
+这一点。真正的多算来自**含空格的昵称被拆成两个 token**（如 `12-2-401 Lydia谣🧸` 被拆成
+`12-2-401` + `Lydia谣🧸`），`parse.py` 现在按"纯房号 + 同房号后半段"合并成一人。
 
 ## 增量重采（群人数小幅变动，2026-11-09 验证）
 
