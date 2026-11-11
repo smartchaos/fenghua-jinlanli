@@ -10,9 +10,9 @@
   "totalHouseholds": 478,
   "coverage": 0.4059,
   "memberDistribution": {
-    "1": 75,
-    "2": 116,
-    "3": 3
+    "1": 74,
+    "2": 118,
+    "3": 2
   },
   "buildings": [
     {
@@ -377,6 +377,6 @@
     }
   },
   "capturedExtra": 0,
-  "screens": 56,
-  "nickCompleted": 3
+  "screens": 23,
+  "nickCompleted": 2
 }

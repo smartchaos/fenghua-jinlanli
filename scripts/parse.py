@@ -202,6 +202,12 @@ def build_members(seq):
             continue
         nxt = seq[i + 1] if i + 1 < len(seq) else ""
         nxt_room = pure_room(nxt) if nxt else None
+        # 「名字 + 房号」这类含空格的群昵称在成员列表里被拆成两个 token。
+        # 只要资料卡群昵称（GROUP_NICK）正好指向紧随其后的那个房号，就判定为同一人（如 大大 6-1201）。
+        if nxt_room and nxt_room in parse_rooms(GROUP_NICK.get(t, "")):
+            members.append({"nick": t + " " + nxt, "rooms": [nxt_room], "note": "合并空格昵称"})
+            i += 2
+            continue
         if t not in NO_MERGE:
             if nxt_room:
                 members.append({"nick": t + " " + nxt, "rooms": [nxt_room], "note": "合并空格昵称"})
