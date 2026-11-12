@@ -39,6 +39,28 @@ body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-syste
 .visit{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;font-variant-numeric:tabular-nums}
 .visit b{color:var(--muted);font-weight:500}
 
+/* daylight timeline */
+.sunbar{top:70px;right:32px;width:236px;padding:12px 13px 11px;border:1px solid var(--border);border-radius:10px;background:var(--surface);pointer-events:auto;box-shadow:0 8px 26px rgba(0,0,0,.13);transition:opacity .2s}
+.sunbar.off{opacity:.55}
+.sb-head{display:flex;align-items:baseline;justify-content:space-between}
+.sb-title{font-size:11px;color:var(--faint);letter-spacing:.04em}
+.sb-time{font-family:var(--mono);font-size:15px;color:var(--amber-ink);font-variant-numeric:tabular-nums}
+.sb-row{display:flex;align-items:center;gap:10px;margin-top:10px}
+.sb-row input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:4px;border-radius:3px;background:var(--surface-2);border:1px solid var(--border);outline:none;cursor:pointer}
+.sb-row input[type=range]:disabled{cursor:not-allowed;opacity:.5}
+.sb-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--amber);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--amber-line)}
+.sb-play{width:26px;height:26px;flex:none;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:7px;background:var(--surface-2);color:var(--muted);cursor:pointer}
+.sb-play.on{background:var(--amber-tint);border-color:var(--amber-line);color:var(--amber-ink)}
+.sb-play svg{width:12px;height:12px;fill:currentColor;stroke:none}
+.sb-play:disabled{opacity:.45;cursor:not-allowed}
+.sb-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+.sb-seasons{display:flex;gap:3px}
+.sb-seasons button{font-family:inherit;font-size:10.5px;padding:3px 6px;border-radius:5px;border:1px solid transparent;background:transparent;color:var(--faint);cursor:pointer}
+.sb-seasons button:hover{color:var(--text);background:var(--surface-2)}
+.sb-seasons button.on{background:var(--amber-tint);color:var(--amber-ink);border-color:var(--amber-line)}
+.sb-seasons button:disabled{cursor:not-allowed}
+.sb-info{font-family:var(--mono);font-size:10px;color:var(--faint);white-space:nowrap}
+
 /* legend */
 .legend{left:32px;bottom:28px;display:flex;gap:16px;align-items:center;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
 .legend span{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
@@ -113,6 +135,7 @@ body.day{
   .stat-row .st b{font-size:18px}
   .top-right{top:16px;right:16px;flex-direction:column;align-items:flex-end}
   .btn{height:30px;padding:0 10px}
+  .sunbar{top:auto;bottom:70px;right:16px;width:210px}
   .legend{left:20px;bottom:20px;gap:12px;padding:8px 12px}
   .compass{right:20px;bottom:20px}
   .panel{width:100%;max-width:420px}

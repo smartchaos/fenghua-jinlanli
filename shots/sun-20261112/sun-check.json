@@ -1,0 +1,205 @@
+{
+  "samples": {
+    "08:00 春分": {
+      "info": {
+        "hour": 8,
+        "season": "equinox",
+        "elevationDeg": 25.57535356777134,
+        "azimuthDeg": -73.75973112720955,
+        "warm": 0.4480502459858531,
+        "strength": 0.8663214587049568,
+        "dir": [
+          0.866,
+          0.4317,
+          0.2523
+        ]
+      },
+      "sunPos": [
+        277.13,
+        138.14,
+        80.72
+      ],
+      "sunIntensity": 2.858,
+      "sunColor": "#ffc187",
+      "skySunDir": [
+        0.866,
+        0.4317,
+        0.2523
+      ],
+      "skyWarm": 0.448,
+      "skyOpacity": 1,
+      "calls": 905
+    },
+    "12:00 春分": {
+      "info": {
+        "hour": 12,
+        "season": "equinox",
+        "elevationDeg": 59.7,
+        "azimuthDeg": 0,
+        "warm": 0,
+        "strength": 1.2,
+        "dir": [
+          0,
+          0.8634,
+          0.5045
+        ]
+      },
+      "sunPos": [
+        0,
+        276.29,
+        161.45
+      ],
+      "sunIntensity": 3.958,
+      "sunColor": "#ffd9a8",
+      "skySunDir": [
+        0,
+        0.8634,
+        0.5045
+      ],
+      "skyWarm": 0,
+      "skyOpacity": 1,
+      "calls": 905
+    },
+    "15:30 春分": {
+      "info": {
+        "hour": 15.5,
+        "season": "equinox",
+        "elevationDeg": 31.708772326848955,
+        "azimuthDeg": 68.83670280862226,
+        "warm": 0.17633790611732036,
+        "strength": 0.9942899699228421,
+        "dir": [
+          -0.7934,
+          0.5256,
+          0.3071
+        ]
+      },
+      "sunPos": [
+        -253.87,
+        168.19,
+        98.28
+      ],
+      "sunIntensity": 3.958,
+      "sunColor": "#ffd9a8",
+      "skySunDir": [
+        -0.7934,
+        0.5256,
+        0.3071
+      ],
+      "skyWarm": 0.176,
+      "skyOpacity": 1,
+      "calls": 1633
+    },
+    "17:00 春分": {
+      "info": {
+        "hour": 17,
+        "season": "equinox",
+        "elevationDeg": 12.912525943792396,
+        "azimuthDeg": 82.30098666361887,
+        "warm": 0.9562335565017981,
+        "strength": 0.546383316986918,
+        "dir": [
+          -0.9659,
+          0.2235,
+          0.1306
+        ]
+      },
+      "sunPos": [
+        -309.1,
+        71.51,
+        41.79
+      ],
+      "sunIntensity": 1.802,
+      "sunColor": "#ffa662",
+      "skySunDir": [
+        -0.9659,
+        0.2235,
+        0.1306
+      ],
+      "skyWarm": 0.956,
+      "skyOpacity": 1,
+      "calls": 905
+    },
+    "12:00 夏至": {
+      "info": {
+        "hour": 12,
+        "season": "summer",
+        "elevationDeg": 83.14000000000004,
+        "azimuthDeg": 0,
+        "warm": 0,
+        "strength": 1.2,
+        "dir": [
+          0,
+          0.9928,
+          0.1194
+        ]
+      },
+      "sunPos": [
+        0,
+        317.71,
+        38.22
+      ],
+      "sunIntensity": 3.958,
+      "sunColor": "#ffd9a8",
+      "skySunDir": [
+        0,
+        0.9928,
+        0.1194
+      ],
+      "skyWarm": 0,
+      "skyOpacity": 1,
+      "calls": 905
+    },
+    "12:00 冬至": {
+      "info": {
+        "hour": 12,
+        "season": "winter",
+        "elevationDeg": 36.26,
+        "azimuthDeg": 0,
+        "warm": 0.04015372266791983,
+        "strength": 1.0799310560843147,
+        "dir": [
+          0,
+          0.5915,
+          0.8063
+        ]
+      },
+      "sunPos": [
+        0,
+        189.26,
+        258.03
+      ],
+      "sunIntensity": 3.562,
+      "sunColor": "#ffd7a5",
+      "skySunDir": [
+        0,
+        0.5915,
+        0.8063
+      ],
+      "skyWarm": 0.04,
+      "skyOpacity": 1,
+      "calls": 905
+    }
+  },
+  "frameDiff": {
+    "sky": {
+      "static_a_c": 0,
+      "size": [
+        1280,
+        800
+      ]
+    },
+    "home": {
+      "static_a_c": 0,
+      "size": [
+        1280,
+        800
+      ]
+    }
+  },
+  "shadowChange": {
+    "am_vs_pm_pixels": 199424
+  },
+  "nightSkyOpacity": 0,
+  "jsErrors": []
+}

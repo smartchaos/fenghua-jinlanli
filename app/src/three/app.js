@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { B, D, roomsByB } from '../data/index.js';
 import { regColor, regNum, applyFaders, setThemedMaps } from './theme.js';
-import { makeSky, makeSkyDome } from './sky.js';
+import { makeNightSky, makeSkyDome, makeDaySkyDome } from './sky.js';
+import { sunState, DEFAULT_HOUR, DEFAULT_SEASON } from './sunlight.js';
 import { createGround } from './ground.js';
 import { createCanal } from './canal.js';
 import { createRoadFurniture } from './roads.js';
@@ -110,9 +111,9 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   warm.position.set(0, 40, 30);
   scene.add(warm);
 
-  /* 天空穹顶 */
-  const skyNight = makeSkyDome(scene, makeSky(false));
-  const skyDay = makeSkyDome(scene, makeSky(true));
+  /* 天空穹顶：夜=星空贴图, 日=大气着色器+程序化云层 */
+  const skyNight = makeSkyDome(scene, makeNightSky());
+  const skyDay = makeDaySkyDome(scene);
 
   /* 场景内容 */
   const ground = createGround(scene, B, renderer);
@@ -143,6 +144,41 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
     needsRender = true;
   }
   applyTheme(initialDay, true);
+
+  /* ---------- 日间日照 ----------
+   * 太阳方向由「时刻 + 节气」求得；方向光/阴影/天空霞光同步跟随。
+   * applyFaders 每帧重置日夜基线，日照修正只在其后按 themeT 加权叠加，
+   * 因此夜间(themeT=0)完全不受影响，也不会逐帧累积。 */
+  const SUN_DIST = 320;
+  const WARM_FOG = new THREE.Color(0xe8c9a4);
+  const WARM_BG = new THREE.Color(0xf0d9bb);
+  let sunHour = DEFAULT_HOUR, sunSeason = DEFAULT_SEASON;
+  let sunInfo = sunState(sunHour, sunSeason);
+  scene.add(sun.target);
+
+  function setSunTime(hour, season = sunSeason){
+    sunHour = hour; sunSeason = season;
+    sunInfo = sunState(hour, season);
+    sun.position.copy(sunInfo.dir).multiplyScalar(SUN_DIST);
+    const u = skyDay.material.uniforms;
+    u.uSunDir.value.copy(sunInfo.dir);
+    u.uSkyTint.value.copy(sunInfo.skyTint).convertSRGBToLinear();
+    u.uWarm.value = sunInfo.warm;
+    u.uHaze.value = sunInfo.haze;
+    renderer.shadowMap.needsUpdate = true;  // 静态阴影贴图按新日照重算一次
+    needsRender = true;
+  }
+  function modulateDaylight(t){
+    if(t < 0.001) return;
+    const s = sunInfo;
+    sun.intensity *= 1 + (s.strength - 1) * t;
+    sun.color.lerp(s.lightTint, t);
+    hemi.intensity *= 1 + (0.80 + 0.20 * s.strength - 1) * t;
+    scene.fog.color.lerp(WARM_FOG, s.warm * t * 0.32);
+    scene.background.lerp(WARM_BG, s.warm * t * 0.26);
+    scene.environmentIntensity *= 1 - 0.18 * s.warm * t;
+  }
+  setSunTime(DEFAULT_HOUR, DEFAULT_SEASON);
 
   /* ---------- intro 生长动画 ---------- */
   const INTRO_POS = new THREE.Vector3(-220, 290, 390);
@@ -186,8 +222,9 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
     themeT += (themeTarget - themeT) * 0.065;
     if(Math.abs(themeTarget - themeT) < 0.0015) themeT = themeTarget;
     applyFaders(themeT);
+    modulateDaylight(themeT);
     skyNight.material.opacity = 1 - themeT;
-    skyDay.material.opacity = themeT;
+    skyDay.material.uniforms.uOpacity.value = themeT;
     skyNight.position.copy(camera.position);
     skyDay.position.copy(camera.position);
     controls.update();
@@ -222,6 +259,13 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
 
   const api = {
     D, openPanel: openPanelById, closePanel, resetView, setTour, applyTheme, dispose,
+    setSunTime,
+    getSunInfo: () => ({
+      hour: sunHour, season: sunSeason,
+      elevationDeg: sunInfo.elevationDeg, azimuthDeg: sunInfo.azimuthDeg,
+      warm: sunInfo.warm, strength: sunInfo.strength,
+      dir: sunInfo.dir.toArray().map(v => +v.toFixed(4)),
+    }),
     scene, canalGrp, renderer, camera, controls, cityscape
   };
   window.__MODEL = api;

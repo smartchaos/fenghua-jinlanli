@@ -47,12 +47,31 @@ PROBE = r"""() => {
     }
   });
 
+  /* 日照模拟：时间轴必须真的驱动太阳，节气必须改变正午高度角 */
+  const daySky = scene.getObjectByName('sky-day');
+  let sunMoves = false, seasonDiff = 0;
+  if (M.setSunTime && M.getSunInfo && sun) {
+    const saved = M.getSunInfo();
+    M.setSunTime(8, 'equinox');
+    const p8 = sun.position.clone();
+    M.setSunTime(16, 'equinox');
+    sunMoves = p8.distanceTo(sun.position) > 50;
+    M.setSunTime(12, 'summer');
+    const summer = M.getSunInfo().elevationDeg;
+    M.setSunTime(12, 'winter');
+    seasonDiff = summer - M.getSunInfo().elevationDeg;
+    M.setSunTime(saved.hour, saved.season);
+  }
+
   return {
     ready: true,
     envMap: !!scene.environment,
     sunElevationDeg: Math.round(elevation * 10) / 10,
     facadeGrain: Math.round(facade * 100) / 100,
     groundGrain: Math.round(ground * 100) / 100,
+    daySkyShader: !!(daySky && daySky.material && daySky.material.uniforms),
+    sunMoves,
+    seasonDiff: Math.round(seasonDiff * 10) / 10,
   };
 }"""
 
@@ -84,6 +103,9 @@ def main():
         "日光为低角度(<=40°)": result["sunElevationDeg"] <= 40,
         "立面有材质颗粒(>=1)": result["facadeGrain"] >= 1,
         "地面有材质颗粒(>=1)": result["groundGrain"] >= 1,
+        "日间天空为大气着色器": result["daySkyShader"],
+        "日照时间轴驱动太阳": result["sunMoves"],
+        "夏至正午高于冬至(>=40°)": result["seasonDiff"] >= 40,
         "无 JS 报错": not errors,
     }
     for name, ok in checks.items():
