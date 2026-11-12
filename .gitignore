@@ -6,3 +6,4 @@ data/members.csv
 .backup-raw/
 node_modules/
 dist/
+.workbuddy/

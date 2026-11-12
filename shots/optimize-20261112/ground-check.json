@@ -1,0 +1,114 @@
+{
+  "city-slab": {
+    "count": 489,
+    "geomY": [
+      -0.5,
+      0.518
+    ],
+    "worldY": [
+      -0.5,
+      36.09
+    ],
+    "meshY": -0.5
+  },
+  "city-tower": {
+    "count": 247,
+    "geomY": [
+      -0.5,
+      0.563
+    ],
+    "worldY": [
+      -0.5,
+      61.12
+    ],
+    "meshY": -0.5
+  },
+  "city-podium": {
+    "count": 146,
+    "geomY": [
+      -0.5,
+      0.487
+    ],
+    "worldY": [
+      -0.5,
+      13.31
+    ],
+    "meshY": -0.5
+  },
+  "city-landmark": {
+    "count": 65,
+    "geomY": [
+      -0.5,
+      0.58
+    ],
+    "worldY": [
+      -0.5,
+      87.7
+    ],
+    "meshY": -0.5
+  },
+  "city-real": {
+    "count": 101,
+    "geomY": [
+      -0.5,
+      0.518
+    ],
+    "worldY": [
+      -0.5,
+      82.99
+    ],
+    "meshY": -0.5
+  },
+  "city-silhouette": {
+    "count": 279,
+    "geomY": [
+      -0.5,
+      0.563
+    ],
+    "worldY": [
+      -0.5,
+      52.47
+    ],
+    "meshY": -0.5
+  },
+  "city-base": {
+    "count": 1048,
+    "geomY": [
+      -0.5,
+      0.5
+    ],
+    "worldY": [
+      -0.4,
+      -0.26
+    ],
+    "meshY": -0.4
+  },
+  "plant-halls": {
+    "count": 9,
+    "geomY": [
+      -0.5,
+      0.5
+    ],
+    "worldY": [
+      0,
+      26
+    ],
+    "meshY": 0
+  },
+  "plant-roofs": {
+    "count": 9,
+    "geomY": [
+      -0.5,
+      0.5
+    ],
+    "worldY": [
+      9.95,
+      27.75
+    ],
+    "meshY": 0
+  },
+  "__ground": {
+    "meadow": -0.35,
+    "city-green": -0.3
+  }
+}

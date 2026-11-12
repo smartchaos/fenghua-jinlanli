@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mulberry32 } from './rng.js';
 import { WORLD_HALF } from './constants.js';
 import { regColor, flatMat, themedMats, grainOverlay } from './theme.js';
@@ -98,34 +99,205 @@ export function isForbidden(x, z){
   return false;
 }
 
-/* ---------- 材质 ---------- */
-function makeFacadeTexture(day){
+/* ---------- 立面图集 ----------
+ * 512² 拆成 2×2 格，四个部位各用一格，单材质单贴图即可实现材质分区：
+ *   0 幕墙(左上) / 1 金属翅片与实墙(右上) / 2 屋面(左下) / 3 基座首层(右下)
+ * 配色对齐 Hy4 企鹅岛样例的「白银建筑 + 蓝灰玻璃」主色调，夜间转冷灰蓝并亮少量窗。 */
+function makeFacadeTexture(day, maxAniso){
   const cv = document.createElement('canvas'); cv.width = cv.height = 512;
   const g = cv.getContext('2d');
-  g.fillStyle = day ? '#b9bab5' : '#333b45'; g.fillRect(0, 0, 512, 512);
-  for(let row = 0; row < 16; row++){
-    const y = row * 32;
-    g.fillStyle = day ? 'rgba(90,98,104,.38)' : 'rgba(12,18,26,.65)';
-    for(let col = 0; col < 12; col++) g.fillRect(col * 42 + 6, y + 8, 30, 16);
-    g.fillStyle = day ? 'rgba(255,255,255,.14)' : 'rgba(150,180,210,.10)';
-    g.fillRect(0, y + 2, 512, 2);
-  }
-  grainOverlay(g, 512, 512, 0.55);
+  const hash = i => { const v = Math.sin(i * 78.233) * 43758.5453; return v - Math.floor(v); };
+  const tile = (i, draw) => {
+    g.save();
+    g.translate((i % 2) * 256, Math.floor(i / 2) * 256);
+    g.beginPath(); g.rect(0, 0, 256, 256); g.clip();
+    draw(g); g.restore();
+  };
+
+  /* 0 幕墙：竖向银白铝板 + 横向蓝灰玻璃带 */
+  tile(0, q => {
+    q.fillStyle = day ? '#d9dedb' : '#3b4650'; q.fillRect(0, 0, 256, 256);
+    for(let row = 0; row < 10; row++){
+      const y = row * 25.6;
+      const grd = q.createLinearGradient(0, y + 6, 0, y + 19);
+      if(day){ grd.addColorStop(0, '#b9cbd6'); grd.addColorStop(.45, '#8fa6b4'); grd.addColorStop(1, '#728c9c'); }
+      else { grd.addColorStop(0, '#2c3d4b'); grd.addColorStop(.5, '#1d2c38'); grd.addColorStop(1, '#111c26'); }
+      q.fillStyle = grd; q.fillRect(0, y + 6, 256, 13);
+      q.fillStyle = day ? 'rgba(255,255,255,.30)' : 'rgba(160,195,225,.10)';
+      q.fillRect(0, y + 6, 256, 2);
+      q.fillStyle = day ? 'rgba(70,84,94,.35)' : 'rgba(0,0,0,.45)';
+      q.fillRect(0, y + 19, 256, 2);
+    }
+    q.fillStyle = day ? 'rgba(255,255,255,.55)' : 'rgba(150,175,195,.12)';
+    for(let c = 0; c < 8; c++) q.fillRect(c * 32, 0, 3, 256);
+    if(!day){
+      for(let i = 0; i < 26; i++){
+        const c = Math.floor(hash(i * 3) * 8), r = Math.floor(hash(i * 3 + 1) * 10);
+        q.fillStyle = `rgba(255,196,112,${(.25 + hash(i * 3 + 2) * .5).toFixed(2)})`;
+        q.fillRect(c * 32 + 4, r * 25.6 + 7, 24, 10);
+      }
+    }
+    q.fillStyle = day ? 'rgba(255,255,255,.07)' : 'rgba(180,210,240,.04)';
+    q.beginPath(); q.moveTo(0, 0); q.lineTo(90, 0); q.lineTo(0, 256); q.closePath(); q.fill();
+  });
+
+  /* 1 金属翅片/实体墙：细竖棱 + 中部高光 */
+  tile(1, q => {
+    const grd = q.createLinearGradient(0, 0, 256, 0);
+    if(day){ grd.addColorStop(0, '#e9ece8'); grd.addColorStop(.5, '#f6f7f4'); grd.addColorStop(1, '#cdd4d0'); }
+    else { grd.addColorStop(0, '#4d5963'); grd.addColorStop(.5, '#697681'); grd.addColorStop(1, '#3e4953'); }
+    q.fillStyle = grd; q.fillRect(0, 0, 256, 256);
+    q.fillStyle = day ? 'rgba(90,105,110,.16)' : 'rgba(215,232,245,.09)';
+    for(let c = 0; c < 16; c++) q.fillRect(c * 16, 0, 1.5, 256);
+    q.fillStyle = day ? 'rgba(255,255,255,.32)' : 'rgba(200,225,245,.07)';
+    q.fillRect(64, 0, 6, 256);
+  });
+
+  /* 2 屋面：混凝土灰 + 设备块投影 */
+  tile(2, q => {
+    q.fillStyle = day ? '#aeb3ae' : '#333b42'; q.fillRect(0, 0, 256, 256);
+    q.fillStyle = day ? 'rgba(70,78,80,.20)' : 'rgba(10,15,20,.35)';
+    q.fillRect(0, 0, 256, 3); q.fillRect(0, 253, 256, 3);
+    for(let i = 0; i < 9; i++){
+      const x = 12 + hash(i * 5) * 210, y = 16 + hash(i * 5 + 1) * 205, w = 18 + hash(i * 5 + 2) * 30;
+      q.fillStyle = day ? 'rgba(75,82,84,.28)' : 'rgba(12,18,24,.45)';
+      q.fillRect(x + w * .08, y + w * .12, w, w * .7);
+      q.fillStyle = day ? '#c8cdc8' : '#4a555e';
+      q.fillRect(x, y, w, w * .7);
+    }
+  });
+
+  /* 3 基座首层：深色石材 + 通高玻璃橱窗 */
+  tile(3, q => {
+    q.fillStyle = day ? '#798187' : '#242c34'; q.fillRect(0, 0, 256, 256);
+    const grd = q.createLinearGradient(0, 40, 0, 190);
+    if(day){ grd.addColorStop(0, '#9fb4c0'); grd.addColorStop(1, '#5e7482'); }
+    else { grd.addColorStop(0, '#2a3b48'); grd.addColorStop(1, '#16212b'); }
+    q.fillStyle = grd; q.fillRect(8, 40, 240, 150);
+    q.fillStyle = day ? 'rgba(60,70,76,.55)' : 'rgba(8,12,16,.70)';
+    for(let c = 0; c < 7; c++) q.fillRect(8 + c * 40, 40, 4, 150);
+    q.fillStyle = day ? 'rgba(255,255,255,.18)' : 'rgba(255,186,110,.16)';
+    q.fillRect(8, 40, 240, 4);
+    q.fillStyle = day ? 'rgba(255,255,255,.10)' : 'rgba(255,190,120,.10)';
+    q.fillRect(0, 196, 256, 60);
+  });
+
+  grainOverlay(g, 512, 512, 0.5);
   const t = new THREE.CanvasTexture(cv);
   t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
+  /* 掠射角下拉远时 512² 图集的 16~32px 细条纹会摩尔纹 shimmer；
+   * 与路网贴图一致用设备上限，不能固定写 4。 */
+  t.anisotropy = maxAniso;
   return t;
 }
 
-function makeBuildingMaterial(){
+function makeBuildingMaterial(maxAniso){
   const m = new THREE.MeshStandardMaterial({
-    map: makeFacadeTexture(false), roughness: 0.72, metalness: 0.06,
+    map: makeFacadeTexture(false, maxAniso), roughness: 0.62, metalness: 0.16,
   });
   m.userData.nightTex = m.map;
-  m.userData.dayTex = makeFacadeTexture(true);
+  m.userData.dayTex = makeFacadeTexture(true, maxAniso);
   themedMats.push(m);
-  regColor(m.color, 0x6b737d, 0x9a9d98);
+  regColor(m.color, 0xa9b3bd, 0xf1f3f0);
   return m;
+}
+
+/* ---------- 建筑形态原型 ----------
+ * 参照 Hy4「企鹅岛数字沙盘」：云状抬升体块、错落塔楼+参数化金属翅片、
+ * 锯齿错位住宅+共享退台、阶梯收分塔。把原来「单个长方体+一张条纹贴图」
+ * 换成有体量层级（基座/主体/退台/冠部/翅片）的复合原型。
+ * 几何归一到单位体 (x,z∈[-.5,.5], y∈[-.5,.5])，由 InstancedMesh 按 (w,h,d) 缩放，
+ * 仍是每类一次 draw call；所有部件 footprint ≤1，不越出原有禁建区判定范围。
+ * 注意：setInst() 会把实例中心放在 y=h/2，因此原型底部必须是 -0.5，
+ * 否则整栋楼会被抬高 h/2、悬在空中。 */
+const TILE_WALL = 0, TILE_FIN = 1, TILE_ROOF = 2, TILE_BASE = 3;
+/* 外围草甸 y=-0.35 / 绿地叠加层 y=-0.30；楼体再下沉 0.5m 扎进地面，杜绝底边露缝 */
+const GROUND_SINK = -0.5;
+
+function archetypePart(w, h, d, x, y, z, tile){
+  const g = new THREE.BoxGeometry(w, h, d);
+  const uv = g.attributes.uv;
+  const u0 = (tile % 2) * 0.5 + 0.008;
+  const v0 = (tile < 2 ? 0.5 : 0) + 0.008;   /* canvas 上半对应 v∈[.5,1] */
+  for(let i = 0; i < uv.count; i++){
+    uv.setXY(i, u0 + uv.getX(i) * 0.484, v0 + uv.getY(i) * 0.484);
+  }
+  uv.needsUpdate = true;
+  g.translate(x, y, z);
+  return g;
+}
+
+/* 各相邻体块竖向交叠 ≥0.006(≈楼高 0.2m)，避免接缝共面 z-fighting；
+ * 翅片凸出立面 0.02(≈0.5m)，由真实几何产生阴影线，不再靠贴图假竖棱。 */
+function archetype(kind){
+  const P = [];
+  const add = (w, h, d, x, y, z, t) => P.push(archetypePart(w, h, d, x, y, z, t));
+  const W = TILE_WALL, F = TILE_FIN, R = TILE_ROOF, B = TILE_BASE;
+  if(kind === 'slab' || kind === 'residential'){
+    /* 板楼住宅：基座 / 主体 / 顶部退台 / 檐板 / 竖翅或阳台挑板 */
+    add(1.00, 0.10, 1.00, 0, 0.05, 0, B);
+    add(0.98, 0.80, 0.98, 0, 0.50, 0, W);
+    add(0.86, 0.11, 0.86, 0, 0.945, 0, W);
+    add(0.90, 0.025, 0.90, 0, 1.005, 0, R);
+    if(kind === 'residential'){
+      for(let k = 0; k < 3; k++){
+        const y = 0.30 + k * 0.22;
+        add(1.00, 0.016, 0.055, 0, y, 0.505, F);
+        add(1.00, 0.016, 0.055, 0, y, -0.505, F);
+      }
+    }else{
+      for(let i = -1; i <= 1; i++){
+        add(0.042, 0.77, 0.024, i * 0.29, 0.50, 0.497, F);
+        add(0.042, 0.77, 0.024, i * 0.29, 0.50, -0.497, F);
+      }
+    }
+  }else if(kind === 'tower'){
+    /* 错落塔楼：裙房基座 / 主塔 / 收分冠 / 塔尖 / 参数化金属竖翅 */
+    add(1.00, 0.13, 1.00, 0, 0.065, 0, B);
+    add(0.88, 0.75, 0.88, 0, 0.50, 0, W);
+    add(0.64, 0.11, 0.64, 0, 0.925, 0, W);
+    add(0.68, 0.024, 0.68, 0, 0.985, 0, R);
+    add(0.09, 0.075, 0.09, 0, 1.025, 0, F);
+    for(const x of [-0.33, -0.11, 0.11, 0.33]){
+      add(0.034, 0.73, 0.026, x, 0.50, 0.446, F);
+      add(0.034, 0.73, 0.026, x, 0.50, -0.446, F);
+    }
+  }else if(kind === 'podium'){
+    /* 低层裙房：横向体量 + 屋面抬升体块 + 采光带 + 首层玻璃带 */
+    add(1.00, 0.12, 1.00, 0, 0.06, 0, B);
+    add(0.98, 0.60, 0.98, 0, 0.41, 0, W);
+    add(1.00, 0.03, 1.00, 0, 0.715, 0, R);
+    add(0.56, 0.26, 0.60, 0, 0.84, 0, W);
+    add(0.60, 0.024, 0.64, 0, 0.975, 0, R);
+    add(1.00, 0.055, 0.03, 0, 0.19, 0.498, F);
+    for(const z of [-0.30, 0.30]){
+      add(0.14, 0.02, 0.50, -0.30, 0.735, z, F);
+      add(0.14, 0.02, 0.50, 0.30, 0.735, z, F);
+    }
+  }else{ /* landmark：三级阶梯收分塔 + 角部竖翅 + 塔尖 */
+    add(1.00, 0.09, 1.00, 0, 0.045, 0, B);
+    add(0.94, 0.42, 0.94, 0, 0.30, 0, W);
+    add(0.76, 0.28, 0.76, 0, 0.645, 0, W);
+    add(0.56, 0.18, 0.56, 0, 0.865, 0, W);
+    add(0.32, 0.05, 0.32, 0, 0.975, 0, R);
+    add(0.08, 0.09, 0.08, 0, 1.035, 0, F);
+    for(const x of [-0.36, 0.36]) add(0.03, 0.40, 0.03, x, 0.30, 0.47, F);
+  }
+  const geo = mergeGeometries(P);
+  P.forEach(p => p.dispose());
+  geo.translate(0, -0.5, 0);        /* [0,1] → [-.5,.5]，底面精确落在 y=0 */
+  return geo;
+}
+
+/* 白银/冷灰/暖灰的轻微色差，打散「一片同色积木」的重复感 */
+const TINTS = [0xffffff, 0xe9eeec, 0xf2ede4, 0xdde7ea, 0xf0f1ee];
+function tintInstances(mesh, list){
+  const c = new THREE.Color();
+  list.forEach((it, i) => {
+    const k = Math.abs(Math.round(it.x * 7 + it.z * 13 + i * 31)) % TINTS.length;
+    mesh.setColorAt(i, c.setHex(TINTS[k]));
+  });
+  if(mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 }
 
 /* ---------- 真实小区楼群 ---------- */
@@ -161,12 +333,14 @@ function setInst(mesh, i, x, z, w, h, d, rot){
   mesh.setMatrixAt(i, _m4);
 }
 
-function makeRealMesh(list){
+function makeRealMesh(list, maxAniso){
   const mesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 1, 1), makeBuildingMaterial(), list.length);
+    archetype('residential'), makeBuildingMaterial(maxAniso), list.length);
   mesh.name = 'city-real';
+  mesh.position.y = GROUND_SINK;
   list.forEach((it, i) => setInst(mesh, i, it.x, it.z, it.w, it.h, it.d, it.rot));
   mesh.instanceMatrix.needsUpdate = true;
+  tintInstances(mesh, list);
   mesh.castShadow = false; mesh.receiveShadow = false;
   return mesh;
 }
@@ -256,8 +430,13 @@ function makeGreenTexture(day){
 }
 
 function makeGreenMesh(){
+  /* 绿地贴花层与草甸只差 5cm，而 dist=1000m(maxDistance) 的深度分辨率已达 5.96cm，
+   * 拉到最远时两者会被量化成同一深度而争夺可见性（贴花斑点时隐时现）。
+   * 不写深度不等于不做 depthTest，故用 polygonOffset 固定贴花比草甸更近，
+   * 无需改动既有分层高度，也不会盖到建筑（建筑顶面深度差远大于偏移单位）。 */
   const mat = new THREE.MeshBasicMaterial({
     map: makeGreenTexture(false), transparent: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
   });
   mat.userData.nightTex = mat.map;
   mat.userData.dayTex = makeGreenTexture(true);
@@ -312,8 +491,9 @@ function makeSilhouette(rnd){
   }
   const mat = new THREE.MeshStandardMaterial({ color: 0x5f6b78, roughness: 1 });
   regColor(mat.color, 0x1d2632, 0x8b98a6);
-  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, list.length);
+  const mesh = new THREE.InstancedMesh(archetype('tower'), mat, list.length);
   mesh.name = 'city-silhouette';
+  mesh.position.y = GROUND_SINK;
   list.forEach((it, i) => setInst(mesh, i, it.x, it.z, it.w, it.h, it.d, it.rot));
   mesh.instanceMatrix.needsUpdate = true;
   mesh.castShadow = false; mesh.receiveShadow = false;
@@ -322,10 +502,16 @@ function makeSilhouette(rnd){
 
 function makeBaseMesh(all){
   const list = all.filter(it => it.type !== 'silhouette');
+  /* 贴地散水/接触阴影：只露出约 4cm 的一圈深色边，随楼体一起下沉，
+   * 既不留「黑色矩形垫块」，也不让楼脚与草甸之间出现亮缝。 */
   const mesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 1, 1), flatMat(0x1a201a, 0x555c4c), list.length);
+    new THREE.BoxGeometry(1, 1, 1),
+    flatMat(0x141a18, 0x6f7a68, {
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
+    }), list.length);
   mesh.name = 'city-base';
-  list.forEach((it, i) => setInst(mesh, i, it.x, it.z, it.w * 1.18, 0.5, it.d * 1.18, it.rot));
+  mesh.position.y = -0.40;
+  list.forEach((it, i) => setInst(mesh, i, it.x, it.z, it.w * 1.08, 0.14, it.d * 1.08, it.rot));
   mesh.instanceMatrix.needsUpdate = true;
   mesh.castShadow = false; mesh.receiveShadow = false;
   return mesh;
@@ -359,7 +545,13 @@ function makePlant(){
   const roofMat = flatMat(0x1f242b, 0x6d737b);
   const roofs = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), roofMat, PLANT.halls.length);
   roofs.name = 'plant-roofs';
-  PLANT.halls.forEach((h, i) => setInst(roofs, i, h.x, h.h + 0.9, h.w + 1.5, 1.8, h.d + 1.5, h.rot || 0));
+  /* 屋面是独立高度的板，不能走 setInst()（其 y 固定为 h/2）；
+   * 中心压到厂房顶下 5cm，交叠避免与厂房顶面共面闪烁。 */
+  PLANT.halls.forEach((h, i) => {
+    _e.set(0, h.rot || 0, 0); _q.setFromEuler(_e);
+    _v.set(h.x, h.h + 0.85, h.z); _s.set(h.w + 1.5, 1.8, h.d + 1.5);
+    _m4.compose(_v, _q, _s); roofs.setMatrixAt(i, _m4);
+  });
   roofs.instanceMatrix.needsUpdate = true;
   roofs.castShadow = false; roofs.receiveShadow = false;
   grp.add(roofs);
@@ -418,19 +610,20 @@ export function createCityscape(scene, renderer){
 
   const byType = { slab: 0, tower: 0, podium: 0, landmark: 0, silhouette: 0, real: 0 };
   all.forEach(it => { byType[it.type]++; });
-  const geo = new THREE.BoxGeometry(1, 1, 1);
   for(const type of ['slab', 'tower', 'podium', 'landmark']){
     const list = all.filter(it => it.type === type);
     if(!list.length) continue;
-    const mesh = new THREE.InstancedMesh(geo, makeBuildingMaterial(), list.length);
+    const mesh = new THREE.InstancedMesh(archetype(type), makeBuildingMaterial(maxAniso), list.length);
     mesh.name = 'city-' + type;
+    mesh.position.y = GROUND_SINK;
     list.forEach((it, i) => setInst(mesh, i, it.x, it.z, it.w, it.h, it.d, it.rot));
     mesh.instanceMatrix.needsUpdate = true;
+    tintInstances(mesh, list);
     mesh.castShadow = false;
     mesh.receiveShadow = false;
     group.add(mesh);
   }
-  group.add(makeRealMesh(real));
+  group.add(makeRealMesh(real, maxAniso));
 
   const roads = makeRoads(maxAniso);
   if(roads) group.add(roads);

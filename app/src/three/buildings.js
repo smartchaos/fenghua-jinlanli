@@ -43,10 +43,10 @@ function makeFacade(b, day, roomsByB){
   base.addColorStop(.55, hi ? (day ? '#c5b69e' : '#bdb2a1') : (day ? '#d2d2ce' : '#c9c9c5'));
   base.addColorStop(1, hi ? (day ? '#ae9e85' : '#a99f8e') : (day ? '#bfbdb8' : '#b8b7b2'));
   g.fillStyle = base; g.fillRect(0, 0, 1024, 1024);
-  /* 高层竖向白色翼板（实景立面的细竖棱） */
+  /* 高层竖向白色翼板（细竖棱）：位置对齐实体翼板，落在窗间与两侧，不切窗 */
   if(!hi){
     g.fillStyle = day ? 'rgba(255,255,255,.5)' : 'rgba(232,238,244,.16)';
-    for(let i = 1; i < 6; i++) g.fillRect(i*1024/6 - 2, 0, 4, 1024);
+    for(const x of [38, 356, 668, 986]) g.fillRect(x - 2, 0, 4, 1024);
   }
   for(let i = 0; i < cols; i++){
     const x = M + i*cw;
@@ -336,8 +336,36 @@ function roundedRectShape(w, d, r){
   return s;
 }
 
+/* 立面实体竖翼板 + 屋顶轻构架（收集为世界坐标部件，最后统一实例化）。
+ * 贴图里的假竖棱换成有明暗的真实几何，屋顶加一道细桁架（企鹅岛连廊的抽象）。
+ * 竖翼板只落在窗间与两侧（4 条 × 0.22m，凸出 ≤0.1m），不切窗、不遮挡亮灯数据。
+ * 全部 12 栋合成 1 个 InstancedMesh：只 +1 draw call，且被 depth 检查按实例化跳过。 */
+function collectDetails(parts, b, w, d, h, hi){
+  const add = (lx, ly, lz, sx, sy, sz) => parts.push({
+    x: b.x + lx, y: SITE_LIFT + ly, z: b.z + lz, w: sx, h: sy, d: sz,
+  });
+  const H = h * 0.94;
+  const yMid = 1.4 + h * 0.03 + H / 2;
+  /* 只在窗间/两侧立细翼板：4 条 × 0.22m，避免近景形成切窗的粗白网格 */
+  if(!hi){
+    for(const k of [-0.463, -0.152, 0.152, 0.463]){
+      const x = w * k;
+      add(x, yMid, d / 2 + 0.03, 0.22, H, 0.12);
+      add(x, yMid, -d / 2 - 0.03, 0.22, H, 0.12);
+    }
+  }
+  const ty = 1.4 + h + 2.75;                 /* 女儿墙(1.5)之上、核心筒(3.2)之下 */
+  for(const z of [-d * 0.22, d * 0.22]) add(0, ty, z, w * 0.72, 0.16, 0.16);
+  for(const x of [-w * 0.34, w * 0.34]){
+    for(const z of [-d * 0.22, d * 0.22]) add(x, ty - 0.70, z, 0.16, 1.40, 0.16);
+  }
+}
+
 /* 12 栋楼: 基座/圆角棱立面盒/屋顶/女儿墙/核心筒/门厅雨棚; 初始压扁待 intro 生长 */
 export function createBuildings(scene, buildings, roomsByB){
+  const detailMat = new THREE.MeshStandardMaterial({ color: 0xc9ccc6, roughness: 0.70, metalness: 0.16 });
+  regColor(detailMat.color, 0x646c72, 0xc9ccc6);
+  const detailParts = [];
   const groups = [];
   const pickMeshes = [];
   const labels = [];
@@ -395,6 +423,8 @@ export function createBuildings(scene, buildings, roomsByB){
     body.userData.b = b;
     group.add(body);
     pickMeshes.push(body);
+
+    collectDetails(detailParts, b, w, d, h, b.type === '洋房');
 
     const roofShape = roundedRectShape(w + 0.9, d + 0.9, rc);
     const roofGeo = new THREE.ExtrudeGeometry(roofShape, { depth: 0.9, bevelEnabled: false });
@@ -478,6 +508,21 @@ export function createBuildings(scene, buildings, roomsByB){
     groups.push(group);
   });
 
+  /* 所有细部共用一个实例化网格：保持 draw call 预算，入场动画结束前隐藏 */
+  const detailMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), detailMat, detailParts.length);
+  detailMesh.name = 'facade-details';
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
+  const pv = new THREE.Vector3(), sv = new THREE.Vector3();
+  detailParts.forEach((it, i) => {
+    pv.set(it.x, it.y, it.z); sv.set(it.w, it.h, it.d);
+    m4.compose(pv, q, sv);
+    detailMesh.setMatrixAt(i, m4);
+  });
+  detailMesh.instanceMatrix.needsUpdate = true;
+  detailMesh.receiveShadow = true;
+  detailMesh.visible = false;
+  scene.add(detailMesh);
+
   function setFacadeMaps(day){
     facades.forEach(f=>{
       const k = day ? 'd' : 'n';
@@ -488,5 +533,5 @@ export function createBuildings(scene, buildings, roomsByB){
     });
   }
 
-  return { groups, pickMeshes, labels, setFacadeMaps };
+  return { groups, pickMeshes, labels, setFacadeMaps, detailMesh };
 }

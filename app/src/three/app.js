@@ -165,6 +165,11 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
     const k = easeInOut(Math.min(1, t));
     if(k < 1) camera.position.lerpVectors(INTRO_POS, HOME_POS, k);
     else camera.position.copy(HOME_POS);
+    /* 立面细部是全局实例化网格，不随逐栋生长；入场完成后一次性显现 */
+    if(k >= 1 && !buildings.detailMesh.visible){
+      buildings.detailMesh.visible = true;
+      needsRender = true;
+    }
     if(done && t > 1.05){ introDone = true; }
   }
   function easeInOut(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
