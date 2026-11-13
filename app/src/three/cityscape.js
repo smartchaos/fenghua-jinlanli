@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mulberry32 } from './rng.js';
 import { WORLD_HALF } from './constants.js';
-import { regColor, flatMat, themedMats, grainOverlay } from './theme.js';
+import { regColor, flatMat, regFade, grainOverlay } from './theme.js';
 import { asphaltMaterial, roadSurfaceMaterial } from './roads.js';
 import SURROUNDINGS from './surroundings.json';
 
@@ -192,14 +192,12 @@ function makeFacadeTexture(day, maxAniso){
 }
 
 function makeBuildingMaterial(maxAniso){
+  const night = makeFacadeTexture(false, maxAniso);
   const m = new THREE.MeshStandardMaterial({
-    map: makeFacadeTexture(false, maxAniso), roughness: 0.62, metalness: 0.16,
+    map: night, roughness: 0.62, metalness: 0.16,
   });
-  m.userData.nightTex = m.map;
-  m.userData.dayTex = makeFacadeTexture(true, maxAniso);
-  themedMats.push(m);
   regColor(m.color, 0xa9b3bd, 0xf1f3f0);
-  return m;
+  return regFade(m, night, makeFacadeTexture(true, maxAniso));
 }
 
 /* ---------- 建筑形态原型 ----------
@@ -434,13 +432,12 @@ function makeGreenMesh(){
    * 拉到最远时两者会被量化成同一深度而争夺可见性（贴花斑点时隐时现）。
    * 不写深度不等于不做 depthTest，故用 polygonOffset 固定贴花比草甸更近，
    * 无需改动既有分层高度，也不会盖到建筑（建筑顶面深度差远大于偏移单位）。 */
+  const night = makeGreenTexture(false);
   const mat = new THREE.MeshBasicMaterial({
-    map: makeGreenTexture(false), transparent: true, depthWrite: false,
+    map: night, transparent: true, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
   });
-  mat.userData.nightTex = mat.map;
-  mat.userData.dayTex = makeGreenTexture(true);
-  themedMats.push(mat);
+  regFade(mat, night, makeGreenTexture(true));
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2), mat);
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.y = -0.30;

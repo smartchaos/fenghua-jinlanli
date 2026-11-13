@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SITE_W, SITE_D, SITE_LIFT, WORLD_HALF } from './constants.js';
 import SURROUNDINGS from './surroundings.json';
 import { createSite, drawMeadow } from './siteTexture.js';
-import { waterMat } from './theme.js';
+import { waterMat, regFade } from './theme.js';
 
 /* 地面三层: 底层外围纹理(y=0) / 抬高平台顶的地块分片(y=SITE_LIFT) / 外围旷野草甸 + 电厂河水面 */
 export function createGround(scene, buildings, renderer){
@@ -10,7 +10,9 @@ export function createGround(scene, buildings, renderer){
 
   const siteNight = createSite(false, buildings, maxAniso);
   const siteDay = createSite(true, buildings, maxAniso);
-  const siteMat = new THREE.MeshStandardMaterial({ map: siteNight.tex, roughness: 0.96, metalness: 0.02 });
+  const siteMat = regFade(
+    new THREE.MeshStandardMaterial({ map: siteNight.tex, roughness: 0.96, metalness: 0.02 }),
+    siteNight.tex, siteDay.tex);
   const site = new THREE.Mesh(new THREE.PlaneGeometry(SITE_W, SITE_D), siteMat);
   site.rotation.x = -Math.PI/2;
   site.position.y = -0.04;          // 压低底图, 与东路路面(0.06)/南路(0.16)拉开 ≥10cm
@@ -19,20 +21,22 @@ export function createGround(scene, buildings, renderer){
 
   /* 平台顶地块分片(东侧门洞通道留在底层) */
   const plotMeshes = siteNight.plots.map((p, i)=>{
-    const mat = new THREE.MeshStandardMaterial({ map: p.tex, roughness: 0.96, metalness: 0.02 });
+    const mat = regFade(
+      new THREE.MeshStandardMaterial({ map: p.tex, roughness: 0.96, metalness: 0.02 }),
+      p.tex, siteDay.plots[i].tex);
     const m = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.d), mat);
     m.rotation.x = -Math.PI/2;
     m.position.set(p.cx, SITE_LIFT + 0.10, p.cz);
     m.receiveShadow = true;
     scene.add(m);
-    return { mat, night: p.tex, day: siteDay.plots[i].tex };
+    return { mat };
   });
 
   const outerNightTex = drawMeadow(false);
   const outerDayTex = drawMeadow(true);
   const outer = new THREE.Mesh(
     new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2),
-    new THREE.MeshBasicMaterial({ map: outerNightTex })
+    regFade(new THREE.MeshBasicMaterial({ map: outerNightTex }), outerNightTex, outerDayTex)
   );
   outer.name = 'meadow';
   outer.rotation.x = -Math.PI/2;
@@ -53,11 +57,6 @@ export function createGround(scene, buildings, renderer){
   });
   scene.add(riverGrp);
 
-  function setGroundMaps(day){
-    siteMat.map = day ? siteDay.tex : siteNight.tex; siteMat.needsUpdate = true;
-    plotMeshes.forEach(p=>{ p.mat.map = day ? p.day : p.night; p.mat.needsUpdate = true; });
-    outer.material.map = day ? outerDayTex : outerNightTex; outer.material.needsUpdate = true;
-  }
-
-  return { treeSpots: siteNight.treeSpots, setGroundMaps };
+  /* 日/夜贴图由 theme.js 的共享 dayMix 在着色器里交叉淡化，这里不再硬切 */
+  return { treeSpots: siteNight.treeSpots };
 }

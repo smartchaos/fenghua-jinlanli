@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { regColor, grainOverlay } from './theme.js';
+import { regColor, grainOverlay, regFade } from './theme.js';
 import { heightOf } from '../data/index.js';
 import { SITE_LIFT } from './constants.js';
 
@@ -387,24 +387,26 @@ export function createBuildings(scene, buildings, roomsByB){
     pod.castShadow = true; pod.receiveShadow = true;
     group.add(pod);
 
-    const facadeMat = new THREE.MeshStandardMaterial({
+    /* 立面（含亮灯 emissiveMap）走日/夜 cross-fade：map 恒为夜版本，
+     * 日版本先用夜版本占位，首次需要白天时由 ensureFacadeMaps() 懒生成并绑定。 */
+    const entry = { mat: null, b, n: makeFacade(b, false, roomsByB), d: null,
+                    mk: (bb, day)=>makeFacade(bb, day, roomsByB) };
+    const facadeMat = regFade(new THREE.MeshStandardMaterial({
       map: null, emissiveMap: null, emissive: 0xffffff, emissiveIntensity: 0.95,
       roughness: 0.48, metalness: 0.22
-    });
-    const entry = { mat: facadeMat, b, n: makeFacade(b, false, roomsByB), d: null, mk: (bb, day)=>makeFacade(bb, day, roomsByB) };
+    }), entry.n.map, entry.n.map, entry.n.glow, entry.n.glow);
+    entry.mat = facadeMat;
     facades.push(entry);
-    facadeMat.map = entry.n.map;
-    facadeMat.emissiveMap = entry.n.glow;
     const sideCols = b.type === '洋房' ? 4 : 3;
     const mkSideMat = endCol => {
-      const m = new THREE.MeshStandardMaterial({
+      const en = { mat: null, b, n: makeSide(b, false, roomsByB, endCol), d: null,
+                   mk: (bb, day)=>makeSide(bb, day, roomsByB, endCol) };
+      const m = regFade(new THREE.MeshStandardMaterial({
         map: null, emissiveMap: null, emissive: 0xffffff, emissiveIntensity: 0.8,
         roughness: 0.55, metalness: 0.16
-      });
-      const en = { mat: m, b, n: makeSide(b, false, roomsByB, endCol), d: null, mk: (bb, day)=>makeSide(bb, day, roomsByB, endCol) };
+      }), en.n.map, en.n.map, en.n.glow, en.n.glow);
+      en.mat = m;
       facades.push(en);
-      m.map = en.n.map;
-      m.emissiveMap = en.n.glow;
       return m;
     };
     /* px 面(+x 端)贴邻立面 col 0, nx 面(-x 端)贴邻立面 col cols-1 */
@@ -523,15 +525,19 @@ export function createBuildings(scene, buildings, roomsByB){
   detailMesh.visible = false;
   scene.add(detailMesh);
 
-  function setFacadeMaps(day){
+  /* 日版本立面贴图（36 张 1024² canvas）只在首次需要白天时生成一次；
+   * 之后 uFadeMap / uFadeGlow 恒指向日版本，来回切换不会把画面拉回起点。 */
+  function ensureFacadeMaps(day){
+    if(!day) return;
     facades.forEach(f=>{
-      const k = day ? 'd' : 'n';
-      if(!f[k]) f[k] = f.mk(f.b, day);
-      f.mat.map = f[k].map;
-      f.mat.emissiveMap = f[k].glow;
-      f.mat.needsUpdate = true;
+      if(f.d) return;
+      f.d = f.mk(f.b, true);
+      const u = f.mat.userData;
+      u.fadeDay.value = f.d.map;
+      u.fadeGlow.value = f.d.glow;
+      u.dayTex = f.d.map;
     });
   }
 
-  return { groups, pickMeshes, labels, setFacadeMaps, detailMesh };
+  return { groups, pickMeshes, labels, ensureFacadeMaps, detailMesh };
 }

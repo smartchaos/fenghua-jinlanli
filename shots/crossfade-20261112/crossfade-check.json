@@ -1,0 +1,49 @@
+{
+  "dayInstant": {
+    "lum": 138.32,
+    "t": {
+      "t": 1,
+      "target": 1,
+      "mix": 1
+    }
+  },
+  "nightInstant": {
+    "lum": 63.2,
+    "t": {
+      "t": 0,
+      "target": 0,
+      "mix": 0
+    }
+  },
+  "midFade": {
+    "lum": 121.4,
+    "t": {
+      "t": 0.7017303973153888,
+      "target": 1,
+      "mix": 0.7017303973153888
+    }
+  },
+  "reverseEarly": {
+    "lum": 112.44,
+    "t": {
+      "t": 0.35833266397571895,
+      "target": 0,
+      "mix": 0.35833266397571895
+    }
+  },
+  "dayAfterFade": {
+    "lum": 138.27,
+    "t": {
+      "t": 1,
+      "target": 1,
+      "mix": 1
+    }
+  },
+  "dayInstantVsAfterFade": {
+    "pixelsOver12": 0,
+    "meanAbsDiff": 0.057,
+    "maxDiff": 2
+  },
+  "errors": [],
+  "drawCalls": 905
+}

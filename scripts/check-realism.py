@@ -36,16 +36,29 @@ PROBE = r"""() => {
   const facadePts = [[6,6],[6,320],[6,700],[992,6],[992,420],[992,820]];
   const groundPts = [[80,80],[640,260],[1200,520],[260,900],[980,1180],[1440,1500]];
 
-  let facade = 0, ground = 0;
+  /* cross-fade 后 map 恒为夜版本、日版本在 material.userData.dayTex；
+   * 两套都要扫，否则只测到暗部颗粒（对比度天然更低），断言会误报。 */
+  let facade = 0, groundNight = 0, groundDay = 0;
+  const measure = (c) => {
+    if (!c || !c.getContext) return;
+    if (c.width === 1024 && c.height === 1024) facade = Math.max(facade, minGrain(c, facadePts));
+    if (c.width === 1680 && c.height === 1960) groundNight = Math.max(groundNight, minGrain(c, groundPts));
+  };
+  const measureDay = (c) => {
+    if (!c || !c.getContext) return;
+    if (c.width === 1024 && c.height === 1024) facade = Math.max(facade, minGrain(c, facadePts));
+    if (c.width === 1680 && c.height === 1960) groundDay = Math.max(groundDay, minGrain(c, groundPts));
+  };
   scene.traverse(o => {
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     for (const m of mats) {
       if (!m || !m.map || !m.map.image || !m.map.image.getContext) continue;
-      const c = m.map.image;
-      if (c.width === 1024 && c.height === 1024) facade = Math.max(facade, minGrain(c, facadePts));
-      if (c.width === 1680 && c.height === 1960) ground = Math.max(ground, minGrain(c, groundPts));
+      measure(m.map.image);
+      const dt = m.userData && m.userData.dayTex;
+      if (dt && dt.image) measureDay(dt.image);
     }
   });
+  const ground = Math.max(groundNight, groundDay);
 
   /* 日照模拟：时间轴必须真的驱动太阳，节气必须改变正午高度角 */
   const daySky = scene.getObjectByName('sky-day');
@@ -69,6 +82,8 @@ PROBE = r"""() => {
     sunElevationDeg: Math.round(elevation * 10) / 10,
     facadeGrain: Math.round(facade * 100) / 100,
     groundGrain: Math.round(ground * 100) / 100,
+    groundGrainNight: Math.round(groundNight * 100) / 100,
+    groundGrainDay: Math.round(groundDay * 100) / 100,
     daySkyShader: !!(daySky && daySky.material && daySky.material.uniforms),
     sunMoves,
     seasonDiff: Math.round(seasonDiff * 10) / 10,

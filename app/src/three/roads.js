@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { flatMat, themedMats } from './theme.js';
+import { flatMat, regFade } from './theme.js';
 import SURROUNDINGS from './surroundings.json';
 
 /* =========================================================================
@@ -59,11 +59,9 @@ export function roadSurfaceMaterial(len, alongU, aniso){
     else { t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, len / TILE_M); }
     return t;
   };
-  const m = new THREE.MeshBasicMaterial({ map: draw(false) });
-  m.userData.nightTex = draw(false);
-  m.userData.dayTex = draw(true);
-  themedMats.push(m);
-  return m;
+  const night = draw(false);
+  const m = new THREE.MeshBasicMaterial({ map: night });
+  return regFade(m, night, draw(true));
 }
 
 export function asphaltMaterial(){ return flatMat(0x101317, 0x3d4248); }
@@ -96,11 +94,9 @@ export function junctionMaterial(aniso){
     t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso || 4;
     return t;
   };
-  const m = new THREE.MeshBasicMaterial({ map: draw(false) });
-  m.userData.nightTex = draw(false);
-  m.userData.dayTex = draw(true);
-  themedMats.push(m);
-  return m;
+  const night = draw(false);
+  const m = new THREE.MeshBasicMaterial({ map: night });
+  return regFade(m, night, draw(true));
 }
 
 /* ---------------- 路网线表 ---------------- */
@@ -138,13 +134,11 @@ function glowMaterial(){
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
     return t;
   };
+  const night = mk(0.8);
   const m = new THREE.MeshBasicMaterial({
-    map: mk(0.8), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    map: night, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   });
-  m.userData.nightTex = mk(0.8);
-  m.userData.dayTex = mk(0);
-  themedMats.push(m);
-  return m;
+  return regFade(m, night, mk(0));
 }
 function place(mesh, i, x, y, z, rotY = 0, sx = 1){
   dummy.position.set(x, y, z);

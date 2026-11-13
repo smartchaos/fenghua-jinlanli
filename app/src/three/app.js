@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { B, D, roomsByB } from '../data/index.js';
-import { regColor, regNum, applyFaders, setThemedMaps } from './theme.js';
+import { regColor, regNum, applyFaders, dayMix } from './theme.js';
 import { makeNightSky, makeSkyDome, makeDaySkyDome } from './sky.js';
 import { sunState, DEFAULT_HOUR, DEFAULT_SEASON } from './sunlight.js';
 import { createGround } from './ground.js';
@@ -137,10 +137,10 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   function applyTheme(day, instant){
     try{ localStorage.setItem(THEME_KEY, day ? 'day' : 'night'); }catch(_){}
     themeTarget = day ? 1 : 0;
-    if(instant) themeT = themeTarget;
-    ground.setGroundMaps(day);
-    setThemedMaps(day);
-    buildings.setFacadeMaps(day);
+    /* 贴图不再硬切：只确保日版本立面贴图已生成并绑定到 cross-fade uniform，
+     * 真正的混合比例 dayMix 与 themeT 共用同一进度，避免「白天贴图 + 夜间曝光」过曝。 */
+    buildings.ensureFacadeMaps(day);
+    if(instant){ themeT = themeTarget; dayMix.value = themeT; }
     needsRender = true;
   }
   applyTheme(initialDay, true);
@@ -222,6 +222,7 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
     themeT += (themeTarget - themeT) * 0.065;
     if(Math.abs(themeTarget - themeT) < 0.0015) themeT = themeTarget;
     applyFaders(themeT);
+    dayMix.value = themeT;          /* 贴图混合与颜色/曝光/光强严格同帧同步 */
     modulateDaylight(themeT);
     skyNight.material.opacity = 1 - themeT;
     skyDay.material.uniforms.uOpacity.value = themeT;
@@ -260,6 +261,7 @@ export function createModelApp(canvas, { initialDay, onSelect, onHover }){
   const api = {
     D, openPanel: openPanelById, closePanel, resetView, setTour, applyTheme, dispose,
     setSunTime,
+    getThemeState: () => ({ t: themeT, target: themeTarget, mix: dayMix.value }),
     getSunInfo: () => ({
       hour: sunHour, season: sunSeason,
       elevationDeg: sunInfo.elevationDeg, azimuthDeg: sunInfo.azimuthDeg,

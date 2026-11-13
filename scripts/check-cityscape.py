@@ -58,10 +58,16 @@ PROBE = r"""async () => {
 
   const texMesh = c.group.children.find(o => o.isInstancedMesh && o.material && o.material.map);
   m.applyTheme(true, true);
-  const day = texMesh ? texMesh.material.map : null;
+  const mixDay = m.getThemeState().mix;
   m.applyTheme(false, true);
-  const night = texMesh ? texMesh.material.map : null;
+  const mixNight = m.getThemeState().mix;
   m.applyTheme(true, true);
+  /* 贴图不再硬切：材质须注册 cross-fade，且日/夜是两张不同贴图 */
+  const fm = texMesh ? texMesh.material : null;
+  const crossFade = !!(fm && fm.userData.crossFade
+    && fm.userData.dayTex && fm.userData.nightTex
+    && fm.userData.dayTex !== fm.userData.nightTex
+    && typeof fm.onBeforeCompile === 'function');
 
   let instanced = 0, textured = 0;
   c.group.traverse(o => {
@@ -92,7 +98,8 @@ PROBE = r"""async () => {
     byType: s.byType,
     instanced,
     textured,
-    themeSwitches: day !== night && day !== null && night !== null,
+    themeSwitches: mixDay === 1 && mixNight === 0 && crossFade,
+    crossFade,
     greenY: green ? Math.round(green.position.y * 100) / 100 : null,
     viaductY: viaduct ? Math.round(viaduct.position.y * 100) / 100 : null,
     deckZ: deck ? Math.round(deck.position.z) : null,
@@ -157,7 +164,8 @@ def main():
         "真实楼不压小区本体": result.get("realInSite", 999) == 0,
         "至少 4 个 InstancedMesh": result.get("instanced", 0) >= 4,
         "楼体材质带贴图": result.get("textured", 0) >= 4,
-        "日夜切换更换贴图": result.get("themeSwitches") is True,
+        "日夜贴图交叉淡化": result.get("themeSwitches") is True,
+        "cross-fade 材质已注册": result.get("crossFade") is True,
         "绿化在 y=-0.30": result.get("greenY") == -0.30,
         "高架 y≈8 且在南侧远景": result.get("viaductY") is not None
                                   and abs(result["viaductY"] - 8) < 0.5
