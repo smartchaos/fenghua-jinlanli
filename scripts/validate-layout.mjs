@@ -43,6 +43,25 @@ const clear = (a, b2) => (b[a].z - b[b2].z) - (b[a].type === '洋房' ? 9.6 : 8.
 assert.ok(clear(4, 6) >= 25, `4#-6# clear spacing must be >= 25, got ${clear(4, 6)}`);
 assert.ok(clear(9, 11) >= 19, `9#-11# clear spacing must be >= 19, got ${clear(9, 11)}`);
 
+/* ---------- 楼间距门禁（2026-11-14 按公开资料校对） ----------
+ * 开发商官网 https://canhigh.com/cn_businessxq_cates_72.html 「约78米楼间距」；
+ * 焦点 https://www.focus.cn/a/1096633420_100203501 「整体楼间距在35米左右，8号楼南向楼间距约78米」；
+ * 规划公示转述 https://cdn.keyland.com.cn/news/85243.html ：用地34165㎡、容积率1.9、密度22%、12幢。
+ * 口径 = 建筑主体外墙净距（高层深 14m / 洋房深 16m），不是中心距。
+ * 3#、8# 同在中列，中心距 92 - 14 = 78m，即宣传的「最大楼间距」；
+ * 其余相邻排中心距 39~48m（净距 24~34m）与「35 米左右」同量级。
+ * 地块南北约 171m，5 排楼不可能全取 35m 净距，因此只对可核查的 78m 中庭
+ * 做硬约束，其余排距用区间门禁锁住，防止后续误调压路/压河。 */
+const bodyGap = (a, c) => (b[a].z - b[c].z)
+  - (b[a].type === '洋房' ? 8 : 7) - (b[c].type === '洋房' ? 8 : 7);
+assert.ok(Math.abs(bodyGap(3, 8) - 78) <= 1,
+  `8# 南向中央中庭净距应约 78m, got ${bodyGap(3, 8)}`);
+for (const [front, back] of [[1, 4], [4, 6], [6, 9], [9, 11]]) {
+  const centerGap = b[front].z - b[back].z;
+  assert.ok(centerGap >= 35 && centerGap <= 50,
+    `${front}#-${back}# 排中心距应在 35~50m, got ${centerGap}`);
+}
+
 for (const building of data.buildings) {
   const halfW = building.type === '洋房' ? 22 : 19;
   const halfD = building.type === '洋房' ? 8 : 7;
@@ -50,6 +69,12 @@ for (const building of data.buildings) {
   assert.ok(building.z + halfD < 100, `${building.name} overlaps 朱家坝路`);
   assert.ok(building.z - halfD > -100, `${building.name} overlaps the river`);
 }
+/* 楼排总进深不得超出示意场地（约 190m，对应 34165㎡ 地块南北 ~171m 加示意放大） */
+const halfDepth = x => x.type === '洋房' ? 8 : 7;
+const southEdge = Math.max(...data.buildings.map(x => x.z + halfDepth(x)));
+const northEdge = Math.min(...data.buildings.map(x => x.z - halfDepth(x)));
+assert.ok(southEdge - northEdge <= 195,
+  `楼排总进深 ${southEdge - northEdge}m 超出地块可用南北长度`);
 
 close(b[3], centroid([1, 2, 4, 5]), '3# must be at the center of 1#/2#/4#/5#');
 close(b[8], centroid([6, 7, 9, 10]), '8# must be at the center of 6#/7#/9#/10#');
