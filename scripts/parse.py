@@ -40,6 +40,8 @@ NO_MERGE = set(OVER.get("noMerge", []))
 JOIN_NAME_TOKENS = set(OVER.get("joinWithRoom", []))
 JOIN_PAIRS = {tuple(p) for p in OVER.get("joinPairs", [])}
 PREFIX_RULES = [tuple(r) for r in OVER.get("prefixRules", [])]
+# 已确认退群的成员：快照里仍含他们，解析时按「昵称+房号」剔除。
+DEPARTED = {(d.get("nick", ""), d.get("room", "")) for d in OVER.get("departed", [])}
 
 # 规划口径：8 幢 16F + 1 幢 13F + 1 幢 11F + 2 幢洋房（7F/6F）
 # 小高层 1F 架空，住宅从 2F 起，两梯三户；洋房一梯两户、每幢两单元、1F 起住。
@@ -297,6 +299,17 @@ def build_rooms():
     return rooms
 
 
+# 按「昵称+房号」剔除已确认退群的成员；快照仍会渲染到他们，只能在此处减掉。
+def drop_departed(members):
+    if not DEPARTED:
+        return members, []
+    kept, gone = [], []
+    for m in members:
+        key = (m["nick"], room_key(m["rooms"][0]) if m["rooms"] else "")
+        (gone if key in DEPARTED else kept).append(m)
+    return kept, gone
+
+
 # 快照后补录的成员：从 data/raw/manual-members.csv 读取。
 # 每行「房号」或「昵称,房号」；同一房号可多行（第二人起只增人数，不增户）。
 def load_manual_members():
@@ -396,6 +409,10 @@ def main():
         print(f"补录待确认：{nick} 的房号 {rk} 新快照里已有 {len(nicks)} 人 {nicks}，"
               "若为同住户第二人则保留，若为同一人请从台账删除")
     members.extend(manual)
+    members, departed_out = drop_departed(members)
+    for m in departed_out:
+        rk = room_key(m["rooms"][0]) if m["rooms"] else "未知房号"
+        print(f"退群剔除：{m['nick']}（{rk}）")
     group_size = snapshot_group_size() + len(manual)
     households = build_households(members)
     manual_keys = {room_key(m["rooms"][0]) for m in manual if m["rooms"]}
