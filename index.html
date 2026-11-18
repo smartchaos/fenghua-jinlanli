@@ -2,11 +2,25 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0; url=./model.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>风华锦澜里</title>
+<script>
+(function(){
+  // 移动端走独立轻量版 mobile.html；桌面端保持原有 3D 版 model.html。
+  // 可用 ?v=mobile / ?v=desktop 强制指定，便于分享链接与回归验收。
+  var force = new URLSearchParams(location.search).get('v');
+  var isMobile = matchMedia('(pointer: coarse)').matches || innerWidth <= 640;
+  var goMobile = force === 'mobile' || (force !== 'desktop' && isMobile);
+  location.replace(goMobile ? './mobile.html' : './model.html');
+})();
+</script>
 </head>
 <body>
-<script>location.replace('./model.html')</script>
-<p>页面已迁移至 <a href="./model.html">model.html</a></p>
+<p>正在打开… 如未自动跳转，请选择版本：</p>
+<ul>
+  <li><a href="./mobile.html">移动端 · 入群进度与房号查询</a></li>
+  <li><a href="./model.html">桌面版 · 3D 楼盘可视化</a></li>
+  <li><a href="./report.html">完整统计报表</a></li>
+</ul>
 </body>
 </html>

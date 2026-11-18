@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<meta name="format-detection" content="telephone=no">
+<title>风华锦澜里 · 业主入群进度</title>
+<style>
+  :root{
+    --bg:#0b0d10; --surface:#14161a; --surface-2:#1d2025; --line:#252930; --border:#2c313a;
+    --text:#edeff2; --muted:#a3a8b0; --faint:#6e747d;
+    --amber:#f0a24a; --amber-soft:#33270f; --amber-ink:#f2b269; --amber-line:#4a3a1c;
+    --teal:#67d5c0; --teal-soft:rgba(103,213,192,.12);
+    --ok:#f0a24a; --shadow:0 12px 40px rgba(0,0,0,.35);
+    --mono:"SF Mono","JetBrains Mono","Roboto Mono",Menlo,monospace;
+  }
+  body.day{
+    --bg:#eef1f5; --surface:#ffffff; --surface-2:#e9edf2; --line:#e2e7ee; --border:#d9e0e8;
+    --text:#1d2833; --muted:#54687e; --faint:#8b98a8;
+    --amber:#c47a24; --amber-soft:#fbf0de; --amber-ink:#a96715; --amber-line:#e8d2ad;
+    --teal:#2e9c86; --teal-soft:rgba(46,156,134,.10);
+    --shadow:0 12px 40px rgba(23,43,63,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,sans-serif;
+    font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;
+    -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(700px 420px at 80% -8%,rgba(240,162,74,.09),transparent 65%);
+  }
+  body.day::before{background:radial-gradient(700px 420px at 80% -8%,rgba(196,122,36,.07),transparent 65%)}
+  button,input{font:inherit;color:inherit}
+  button{background:none;border:0;cursor:pointer}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--amber);color:#191104}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+  /* ── 手机画布：桌面上也保持手机宽度，便于预览 ── */
+  #app{
+    position:relative;max-width:480px;min-height:100vh;margin:0 auto;
+    background:var(--bg);box-shadow:var(--shadow);
+  }
+  @media (min-width:600px){
+    body{background:#07090c}
+    body.day{background:#dfe4eb}
+    #app{min-height:100vh}
+  }
+
+  /* ── 顶栏 ── */
+  .hd{
+    position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:11px;
+    padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
+    background:var(--bg);
+    background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);
+    border-bottom:1px solid var(--line);
+  }
+  .mark{
+    width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:grid;place-items:center;
+    background:var(--amber);color:#241505;font-size:17px;font-weight:600;letter-spacing:0;
+  }
+  .hd-tx{min-width:0;flex:1}
+  .hd-tx h1{font-size:15px;font-weight:600;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hd-tx p{font-size:10.5px;color:var(--faint);letter-spacing:.06em;margin-top:1px}
+  .ic-btn{
+    width:40px;height:40px;flex:0 0 40px;border-radius:12px;border:1px solid var(--border);
+    background:var(--surface);display:grid;place-items:center;color:var(--muted);
+  }
+  .ic-btn:active{background:var(--surface-2);transform:scale(.95)}
+  .ic-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .ic-moon{display:none}
+  body.day .ic-sun{display:none}
+  body.day .ic-moon{display:block}
+
+  /* ── 视图 ── */
+  main{padding:16px 16px calc(env(safe-area-inset-bottom) + 88px)}
+  .view{display:none;animation:fade .22s ease both}
+  .view.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .sec{margin-top:24px}
+  .sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .sec-h h2{font-size:13px;font-weight:600;letter-spacing:.04em}
+  .sec-h span{font-size:10.5px;color:var(--faint);letter-spacing:.04em}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .card + .card{margin-top:10px}
+
+  /* ── 3D 自动巡览：预渲染帧 crossfade + 缓慢漂移，无 WebGL / 无手势 ── */
+  .scene-card{
+    position:relative;height:132px;margin-bottom:14px;border-radius:18px;overflow:hidden;
+    background:var(--surface-2);border:1px solid var(--line);
+  }
+  .scene-frames{position:absolute;inset:0;animation:drift 15s ease-in-out infinite alternate}
+  @keyframes drift{from{transform:scale(1.03) translateX(0)}to{transform:scale(1.12) translateX(-1.5%)}}
+  .frame{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0}
+  .f1{animation:f1 15s linear infinite}
+  .f2{animation:f2 15s linear infinite}
+  .f3{animation:f3 15s linear infinite}
+  @keyframes f1{0%,28%{opacity:1}33%,95%{opacity:0}100%{opacity:1}}
+  @keyframes f2{0%,28%{opacity:0}33%,61%{opacity:1}66%,100%{opacity:0}}
+  @keyframes f3{0%,61%{opacity:0}66%,95%{opacity:1}100%{opacity:0}}
+  .scene-veil{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,rgba(6,9,13,.28) 0%,transparent 40%,rgba(6,9,13,.66) 100%)}
+  .scene-tag{
+    position:absolute;right:12px;top:11px;display:flex;align-items:center;gap:6px;
+    padding:4px 9px;border-radius:99px;background:rgba(8,12,18,.48);color:#fff;
+    font-size:10px;letter-spacing:.06em;backdrop-filter:blur(6px);
+  }
+  .scene-tag i{width:5px;height:5px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber);animation:blink 2s ease-in-out infinite}
+  @keyframes blink{50%{opacity:.3}}
+  .scene-cap{position:absolute;left:14px;bottom:11px;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.65)}
+  .scene-cap .t{font-size:13px;font-weight:600;letter-spacing:.03em}
+  .scene-cap .s{font-size:10.5px;opacity:.85;letter-spacing:.04em;margin-top:2px}
+  @media (prefers-reduced-motion:reduce){
+    .scene-frames,.scene-tag i,.f1,.f2,.f3{animation:none!important}
+    .f2,.f3{display:none}
+    .f1{opacity:1}
+  }
+
+  /* ── Hero ── */
+  .hero{
+    position:relative;overflow:hidden;border-radius:20px;padding:20px 18px 18px;
+    background:
+      radial-gradient(420px 200px at 88% -20%,rgba(240,162,74,.20),transparent 70%),
+      linear-gradient(160deg,var(--surface-2),var(--surface));
+    border:1px solid var(--amber-line);
+  }
+  .hero .eyebrow{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:10.5px;letter-spacing:.16em}
+  .hero .eyebrow i{width:5px;height:5px;border-radius:50%;background:var(--amber);box-shadow:0 0 10px var(--amber)}
+  .hero-num{display:flex;align-items:flex-end;gap:9px;margin-top:10px}
+  .hero-num .n{font-family:var(--mono);font-size:58px;line-height:1;font-weight:600;letter-spacing:-.055em;color:var(--amber)}
+  .hero-num .unit-label{font-size:13px;color:var(--muted);padding-bottom:8px}
+  .hero-sub{margin-top:6px;color:var(--muted);font-size:12.5px}
+  .hero-sub b{color:var(--text);font-weight:600}
+  .track{position:relative;height:10px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:18px}
+  .track .bar{position:absolute;inset:0 auto 0 0;width:0;border-radius:99px;background:linear-gradient(90deg,#b96f2c,var(--amber));transition:width .9s cubic-bezier(.22,1,.36,1)}
+  .track .tick{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--bg);opacity:.8}
+  .goal{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-size:11px;color:var(--faint)}
+  .goal b{color:var(--amber-ink);font-weight:600}
+  .hero-cta{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+    margin-top:16px;padding:12px 14px;border-radius:12px;
+    background:var(--amber-soft);border:1px solid var(--amber-line);color:var(--amber-ink);
+    font-size:12.5px;font-weight:500;text-align:left;
+  }
+  .hero-cta:active{transform:scale(.985);opacity:.85}
+  .hero-cta svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 16px}
+
+  /* ── KPI ── */
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .kpi .k{font-size:10.5px;color:var(--muted);letter-spacing:.05em}
+  .kpi .v{font-family:var(--mono);font-size:26px;line-height:1.25;margin-top:5px;font-weight:500}
+  .kpi .v small{font-family:inherit;font-size:11px;color:var(--faint);margin-left:3px;letter-spacing:0}
+  .kpi .s{font-size:10.5px;color:var(--faint);margin-top:2px}
+  .kpi.hl .v{color:var(--amber)}
+
+  /* ── 分布 / 排行 ── */
+  .stack{height:22px;border-radius:7px;overflow:hidden;display:flex;background:var(--surface-2)}
+  .stack div{height:100%;transition:width .7s ease}
+  .stack .s1{background:#f0a24a}.stack .s2{background:#c47a24}.stack .s3{background:#7d4a1c}
+  .lg{display:flex;flex-direction:column;gap:9px;margin-top:14px}
+  .lg .li{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted)}
+  .lg .sw{width:9px;height:9px;border-radius:2px;flex:0 0 9px}
+  .lg b{margin-left:auto;font-family:var(--mono);color:var(--text);font-weight:500}
+  .lg em{font-style:normal;color:var(--faint);font-size:10.5px;margin-left:6px}
+  .note{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--faint);line-height:1.75}
+  .note b{color:var(--muted);font-weight:500}
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .duo .card{padding:14px}
+  .duo .lab{font-size:10.5px;color:var(--faint);letter-spacing:.05em}
+  .duo .bn{font-family:var(--mono);font-size:22px;margin-top:5px}
+  .duo .bn small{font-size:11px;color:var(--faint);margin-left:4px}
+  .duo .sub{font-size:11px;color:var(--muted);margin-top:3px}
+  .duo .up .bn{color:var(--teal)}
+  .duo .down .bn{color:var(--muted)}
+
+  /* ── 楼栋列表 ── */
+  .bhead{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;text-align:left}
+  .bhead .bn{font-family:var(--mono);font-size:18px;font-weight:500;width:44px;flex:0 0 44px}
+  .bhead .bt{flex:1;min-width:0}
+  .bhead .bt .l1{font-size:12px;color:var(--muted)}
+  .bhead .bt .l1 span{color:var(--faint);font-size:10.5px;margin-left:6px}
+  .bhead .bt .mini{display:block;margin-top:7px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+  .bhead .bt .mini i{display:block;height:100%;border-radius:99px;background:var(--amber)}
+  .bhead .bt .mini i.villa{background:var(--teal)}
+  .bhead .pct{font-family:var(--mono);font-size:14px;color:var(--amber-ink);width:48px;text-align:right;flex:0 0 48px}
+  .bhead .arw{width:16px;height:16px;flex:0 0 16px;stroke:var(--faint);fill:none;stroke-width:2;stroke-linecap:round;transition:transform .2s}
+  .bcard.open .bhead .arw{transform:rotate(180deg)}
+  .bcard + .bcard{margin-top:10px}
+  .bcard{overflow:hidden}
+  .floors{display:none;padding:2px 0 6px;border-top:1px solid var(--line);margin-top:4px;padding-top:14px}
+  .bcard.open .floors{display:block;animation:fade .2s ease both}
+  .units{display:flex;gap:4px;margin:0 0 6px 32px}
+  .units span{flex:1;text-align:center;font-size:9.5px;color:var(--faint);font-family:var(--mono)}
+  .frow{display:flex;align-items:center;gap:4px;margin-bottom:4px}
+  .fl{width:28px;flex:0 0 28px;text-align:right;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+  .fcells{flex:1;display:grid;gap:4px;min-width:0}
+  .fcells.c3{grid-template-columns:repeat(3,1fr)}
+  .fcells.c4{grid-template-columns:repeat(4,1fr)}
+  .u{
+    height:28px;border-radius:5px;display:grid;place-items:center;
+    font-family:var(--mono);font-size:10px;letter-spacing:-.02em;
+    background:var(--surface-2);color:var(--faint);border:1px solid transparent;
+  }
+  .u.on{background:var(--amber);color:#241505;font-weight:600;border-color:var(--amber)}
+  .u.inf{background:transparent;border:1px dashed var(--amber);color:var(--amber-ink)}
+  .void{flex:1;height:28px;border-radius:5px;background:var(--surface-2);opacity:.5;display:grid;place-items:center;font-size:9.5px;color:var(--faint);letter-spacing:.08em}
+  .blegend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:10.5px;color:var(--faint)}
+  .blegend span{display:flex;align-items:center;gap:5px}
+  .blegend i{width:9px;height:9px;border-radius:2px;display:inline-block;background:var(--surface-2)}
+  .blegend i.on{background:var(--amber)}
+  .blegend i.inf{border:1px dashed var(--amber);background:transparent}
+
+  /* ── 查我家 ── */
+  .searchbox{display:flex;align-items:center;gap:10px;height:52px;padding:0 14px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+  .searchbox:focus-within{border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-soft)}
+  .searchbox svg{width:18px;height:18px;flex:0 0 18px;stroke:var(--faint);fill:none;stroke-width:1.9;stroke-linecap:round}
+  .searchbox input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:16px;font-family:var(--mono);letter-spacing:.02em;-webkit-appearance:none;appearance:none}
+  .searchbox input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+  .searchbox input::placeholder{font-family:"PingFang SC",-apple-system,sans-serif;font-size:14px;color:var(--faint);letter-spacing:0}
+  .clr{width:28px;height:28px;flex:0 0 28px;border-radius:50%;color:var(--faint);font-size:17px;line-height:1;display:none;place-items:center;background:var(--surface-2)}
+  .clr.show{display:grid}
+  .quick{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  .quick .t{font-size:11px;color:var(--faint)}
+  .chip{padding:6px 12px;border-radius:99px;border:1px solid var(--border);background:var(--surface);font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+  .chip:active{background:var(--surface-2)}
+  .rsum{margin:16px 0 8px;font-size:11.5px;color:var(--faint)}
+  .rsum b{color:var(--text);font-weight:500}
+  .res{display:flex;flex-direction:column;gap:8px}
+  .rr{display:flex;align-items:center;gap:12px;min-height:58px;padding:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:13px}
+  .rr .key{font-family:var(--mono);font-size:15px;font-weight:500;min-width:88px}
+  .rr .meta{font-size:11px;color:var(--faint);line-height:1.45}
+  .rr .meta b{color:var(--muted);font-weight:500}
+  .rr .st{margin-left:auto;flex:0 0 auto;padding:5px 10px;border-radius:99px;font-size:11px;white-space:nowrap}
+  .rr .st.on{background:var(--amber);color:#241505;font-weight:600}
+  .rr .st.off{background:var(--surface-2);color:var(--faint)}
+  .empty{padding:32px 16px;text-align:center;color:var(--faint);font-size:12.5px;line-height:1.9}
+  .empty b{display:block;color:var(--muted);font-size:14px;font-weight:500;margin-bottom:4px}
+
+  /* ── 关于 ── */
+  .m-item{padding:14px 0;border-bottom:1px solid var(--line)}
+  .m-item:last-child{border-bottom:0;padding-bottom:0}
+  .m-item .n{font-family:var(--mono);font-size:10px;color:var(--amber);letter-spacing:.1em}
+  .m-item h3{font-size:13px;font-weight:600;margin:5px 0 5px}
+  .m-item p{font-size:12px;color:var(--muted);line-height:1.8}
+  .m-item p b{color:var(--text);font-weight:500}
+  .link{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+    min-height:56px;padding:12px 15px;border-radius:14px;background:var(--surface);
+    border:1px solid var(--line);font-size:13px;font-weight:500;
+  }
+  .link + .link{margin-top:10px}
+  .link:active{background:var(--surface-2)}
+  .link small{display:block;font-size:10.5px;color:var(--faint);font-weight:400;margin-top:2px}
+  .link svg{width:16px;height:16px;flex:0 0 16px;stroke:var(--faint);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .foot{margin-top:22px;text-align:center;font-size:10.5px;color:var(--faint);line-height:1.9}
+
+  /* ── 底部导航 ── */
+  .tabs{
+    position:fixed;z-index:30;bottom:0;left:50%;transform:translateX(-50%);
+    width:100%;max-width:480px;display:grid;grid-template-columns:repeat(4,1fr);
+    padding:6px 8px calc(env(safe-area-inset-bottom) + 6px);
+    background:var(--bg);
+    background:color-mix(in srgb,var(--bg) 92%,transparent);
+    backdrop-filter:saturate(160%) blur(16px);-webkit-backdrop-filter:saturate(160%) blur(16px);
+    border-top:1px solid var(--line);
+  }
+  .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:50px;border-radius:12px;color:var(--faint);font-size:10.5px;letter-spacing:.02em}
+  .tab svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .tab.on{color:var(--amber)}
+  .tab.on svg{stroke-width:2}
+  .tab:active{background:var(--surface-2)}
+
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="hd">
+    <div class="mark">锦</div>
+    <div class="hd-tx">
+      <h1>风华锦澜里 · 业主入群进度</h1>
+      <p id="hdDate">数据加载中</p>
+    </div>
+    <button class="ic-btn" id="themeBtn" aria-label="切换日间/夜间模式">
+      <svg class="ic-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      <svg class="ic-moon" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>
+    </button>
+  </header>
+
+  <main>
+    <!-- 概览 -->
+    <section class="view on" id="v-home">
+      <div class="scene-card" aria-label="风华锦澜里 3D 住区自动巡览">
+        <div class="scene-frames">
+          <img class="frame f1" src="mobile-assets/scene-morning.jpg" alt="清晨的住区鸟瞰">
+          <img class="frame f2" src="mobile-assets/scene-day.jpg" alt="日间的住区鸟瞰">
+          <img class="frame f3" src="mobile-assets/scene-night.jpg" alt="夜景的住区鸟瞰">
+        </div>
+        <div class="scene-veil"></div>
+        <div class="scene-tag"><i></i>自动巡览</div>
+        <div class="scene-cap">
+          <div class="t">风华锦澜里 · 住区一日</div>
+          <div class="s">清晨 → 日间 → 夜景 · 12 幢 / <span id="sceneTotal">–</span> 户</div>
+        </div>
+      </div>
+      <div class="hero">
+        <div class="eyebrow"><i></i>全盘入群覆盖率 · COMMUNITY COVERAGE</div>
+        <div class="hero-num"><span class="n" id="hRate">–</span><span class="unit-label">已覆盖</span></div>
+        <div class="hero-sub">全盘 <b id="hTotal">–</b> 户，已有 <b id="hJoined">–</b> 户进群</div>
+        <div class="track"><div class="bar" id="hBar"></div><div class="tick" title="50% 里程碑"></div></div>
+        <div class="goal"><span>0%</span><span>下一个里程碑 <b>50%</b> · 还差 <b id="hGap">–</b> 户</span><span>100%</span></div>
+        <button class="hero-cta" id="goCheck">
+          <span>看看自家房号在不在群里 →</span>
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </button>
+      </div>
+
+      <div class="sec">
+        <div class="sec-h"><h2>关键数字</h2><span>KEY FIGURES</span></div>
+        <div class="kpis">
+          <div class="kpi hl"><div class="k">覆盖家庭</div><div class="v"><span id="kHome">–</span><small>户</small></div><div class="s">按房号归并</div></div>
+          <div class="kpi"><div class="k">全盘户数</div><div class="v"><span id="kTotal">–</span><small>户</small></div><div class="s">12 幢住宅</div></div>
+          <div class="kpi"><div class="k">群成员</div><div class="v"><span id="kGroup">–</span><small>人</small></div><div class="s">微信显示人数</div></div>
+          <div class="kpi"><div class="k">尚未覆盖</div><div class="v"><span id="kLeft">–</span><small>户</small></div><div class="s">待邻居加入</div></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-h"><h2>每户进群人数</h2><span>PEOPLE PER HOME</span></div>
+        <div class="card">
+          <div class="stack" id="stack"></div>
+          <div class="lg" id="sizeLg"></div>
+          <div class="note" id="sizeNote"></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-h"><h2>楼栋差异</h2><span>TOP &amp; BOTTOM</span></div>
+        <div class="duo">
+          <div class="card up"><div class="lab">覆盖最高</div><div class="bn" id="topB">–</div><div class="sub" id="topS">–</div></div>
+          <div class="card down"><div class="lab">覆盖最低</div><div class="bn" id="lowB">–</div><div class="sub" id="lowS">–</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 楼栋 -->
+    <section class="view" id="v-build">
+      <div class="sec-h" style="margin-bottom:12px"><h2>12 幢逐户分布</h2><span>UNIT BY UNIT</span></div>
+      <p style="font-size:11.5px;color:var(--faint);margin-bottom:14px">点开任意一幢，查看每层的房号入群情况。格内数字即房号。</p>
+      <div id="buildings"></div>
+      <div class="blegend" style="margin-top:16px">
+        <span><i class="on"></i>已入群</span><span><i></i>未入群</span><span><i class="inf"></i>推测</span><span>1F 架空层为深色空行</span>
+      </div>
+    </section>
+
+    <!-- 查我家 -->
+    <section class="view" id="v-search">
+      <div class="sec-h" style="margin-bottom:12px"><h2>查我家入群了吗</h2><span>LOOK UP YOUR UNIT</span></div>
+      <div class="searchbox">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" inputmode="numeric" autocomplete="off" placeholder="输入房号，如 1-1302 / 1302">
+        <button class="clr" id="clr" aria-label="清空">×</button>
+      </div>
+      <div class="quick"><span class="t">试试</span><button class="chip" data-q="1-1302">1-1302</button><button class="chip" data-q="1302">1302</button><button class="chip" data-q="11-1-101">11-1-101</button></div>
+      <div class="rsum" id="rsum">输入房号即可查询</div>
+      <div class="res" id="res"></div>
+    </section>
+
+    <!-- 关于 -->
+    <section class="view" id="v-about">
+      <div class="sec-h" style="margin-bottom:6px"><h2>数据口径</h2><span>METHOD &amp; PRIVACY</span></div>
+      <div class="card" id="method"></div>
+
+      <div class="sec">
+        <div class="sec-h"><h2>现有完整版本</h2><span>DESKTOP EDITIONS</span></div>
+        <a class="link" href="model.html"><span>3D 楼盘可视化<small>可旋转的住区模型，桌面体验更佳</small></span><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></a>
+        <a class="link" href="report.html"><span>完整统计报表<small>楼栋覆盖、逐户热力与全部口径</small></span><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></a>
+      </div>
+
+      <div class="foot">
+        数据截至 <span id="fDate">–</span> · 仅用于业主群内部统计<br>
+        只展示房号与户数，昵称明细不上传
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab on" data-v="home"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>概览</button>
+    <button class="tab" data-v="build"><svg viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-5h6v5M8 9h.01M12 9h.01M16 9h.01M8 12.5h.01M12 12.5h.01M16 12.5h.01"/></svg>楼栋</button>
+    <button class="tab" data-v="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>查我家</button>
+    <button class="tab" data-v="about"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>关于</button>
+  </nav>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var THEME_KEY = 'spax-theme-v2';
+
+  /* 主题与桌面版共用同一个 localStorage key */
+  function applyTheme(day){
+    document.body.classList.toggle('day', !!day);
+    var meta = document.querySelector('meta[name=theme-color]');
+    if(meta) meta.setAttribute('content', day ? '#eef1f5' : '#0b0d10');
+  }
+  var saved = true;
+  try{ saved = localStorage.getItem(THEME_KEY) !== 'night'; }catch(_){}
+  applyTheme(saved);
+  document.getElementById('themeBtn').addEventListener('click', function(){
+    var day = !document.body.classList.contains('day');
+    applyTheme(day);
+    try{ localStorage.setItem(THEME_KEY, day ? 'day' : 'night'); }catch(_){}
+  });
+
+  /* 数据带时间戳加载，避免更新数据后手机读到旧缓存 */
+  var s = document.createElement('script');
+  s.src = 'data/app-data.js?v=' + Date.now();
+  s.onload = boot;
+  s.onerror = function(){
+    document.querySelector('main').innerHTML =
+      '<div class="card" style="margin-top:24px;color:var(--amber-ink)">数据文件 data/app-data.js 未加载。<br><span style="font-size:12px;color:var(--muted)">请从站点根目录打开本页面（与 data/ 同级）。</span></div>';
+  };
+  document.head.appendChild(s);
+
+  function boot(){
+    var D = window.APP_DATA;
+    if(!D || !D.meta) return s.onerror();
+    var M = D.meta, B = D.buildings, R = D.rooms;
+    var joined = B.reduce(function(s,b){ return s + b.joined; }, 0);
+    var pct = function(x){ return (x * 100).toFixed(1) + '%'; };
+    var set = function(id, v){ var el = document.getElementById(id); if(el) el.textContent = v; };
+
+    set('hdDate', '数据截至 ' + M.date + ' · 群昵称校正版');
+    set('fDate', M.date);
+    set('sceneTotal', M.totalHouseholds);
+    set('hRate', pct(M.coverage));
+    set('hTotal', M.totalHouseholds);
+    set('hJoined', joined);
+    set('hGap', Math.max(0, Math.ceil(M.totalHouseholds * 0.5) - joined));
+    set('kHome', joined);
+    set('kTotal', M.totalHouseholds);
+    set('kGroup', M.groupSize);
+    set('kLeft', Math.max(0, M.totalHouseholds - joined));
+    requestAnimationFrame(function(){
+      document.getElementById('hBar').style.width = (M.coverage * 100).toFixed(1) + '%';
+    });
+
+    /* 每户进群人数 */
+    var sizes = {1:0, 2:0, 3:0};
+    R.forEach(function(r){ if(r.joined > 0) sizes[Math.min(r.joined, 3)]++; });
+    var homes = sizes[1] + sizes[2] + sizes[3];
+    var stack = document.getElementById('stack');
+    var colors = {1:'#f0a24a', 2:'#c47a24', 3:'#7d4a1c'};
+    [1,2,3].forEach(function(k){
+      if(!sizes[k]) return;
+      var d = document.createElement('div');
+      d.className = 's' + k;
+      d.style.width = (sizes[k] / homes * 100) + '%';
+      stack.appendChild(d);
+    });
+    var lg = document.getElementById('sizeLg');
+    [1,2,3].forEach(function(k){
+      var d = document.createElement('div');
+      d.className = 'li';
+      d.innerHTML = '<span class="sw" style="background:' + colors[k] + '"></span>' + k + ' 人进群' +
+        '<b>' + sizes[k] + ' 户</b><em>' + (sizes[k] / homes * 100).toFixed(1) + '%</em>';
+      lg.appendChild(d);
+    });
+    document.getElementById('sizeNote').innerHTML =
+      '<b>' + M.identifiedMembers + '</b> 位成员匹配到房号，分布在 <b>' + homes +
+      '</b> 户；平均每户 <b>' + (M.identifiedMembers / homes).toFixed(2) + '</b> 人。';
+
+    /* 覆盖率最高 / 最低 */
+    var sorted = B.slice().sort(function(a,b){ return b.rate - a.rate; });
+    var top = sorted[0], low = sorted[sorted.length - 1];
+    set('topB', top.name); set('topS', top.joined + '/' + top.total + ' 户 · ' + pct(top.rate));
+    set('lowB', low.name); set('lowS', low.joined + '/' + low.total + ' 户 · ' + pct(low.rate));
+
+    /* 楼栋手风琴 + 逐户热力 */
+    var byBuilding = {};
+    R.forEach(function(r){ (byBuilding[r.b] = byBuilding[r.b] || []).push(r); });
+    var wrap = document.getElementById('buildings');
+    B.forEach(function(b){
+      var card = document.createElement('div');
+      card.className = 'card bcard';
+      card.innerHTML =
+        '<button class="bhead">' +
+          '<span class="bn">' + b.name + '</span>' +
+          '<span class="bt"><span class="l1">' + b.joined + ' / ' + b.total + ' 户<span>' + b.type + ' · ' + b.floors + 'F</span></span>' +
+            '<span class="mini"><i class="' + (b.type === '洋房' ? 'villa' : '') + '" style="width:' + (b.rate*100).toFixed(1) + '%"></i></span>' +
+          '</span>' +
+          '<span class="pct">' + (b.rate*100).toFixed(0) + '%</span>' +
+          '<svg class="arw" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>' +
+        '</button><div class="floors"></div>';
+
+      var heads = b.type === '洋房' ? ['2-2','2-1','1-2','1-1'] : ['3单元','2单元','1单元'];
+      var cols = heads.length;
+      var rows = '<div class="units">' + heads.map(function(t){ return '<span>' + t + '</span>'; }).join('') + '</div>';
+      for(var f = b.floors; f >= 1; f--){
+        if(f < b.residentFrom){
+          rows += '<div class="frow"><span class="fl">' + f + 'F</span><div class="void">架空层 / 入户大堂</div></div>';
+        }else{
+          var rs = (byBuilding[b.id] || []).filter(function(r){ return r.f === f; })
+            .sort(function(a,c){ return c.col - a.col; });
+          var cells = rs.map(function(r){
+            var cls = r.joined > 0 ? (r.status === 'inferred' ? 'u inf' : 'u on') : 'u';
+            var label = String(r.key).split('-').pop();
+            return '<div class="' + cls + '" title="' + r.key + '">' + label + '</div>';
+          }).join('');
+          rows += '<div class="frow"><span class="fl">' + f + 'F</span><div class="fcells c' + cols + '">' + cells + '</div></div>';
+        }
+      }
+      card.querySelector('.floors').innerHTML = rows;
+      card.querySelector('.bhead').addEventListener('click', function(){
+        var wasOpen = card.classList.contains('open');
+        Array.prototype.forEach.call(wrap.children, function(c){ c.classList.remove('open'); });
+        if(!wasOpen) card.classList.add('open');
+      });
+      wrap.appendChild(card);
+    });
+
+    /* 房号自查：把输入与房号都归一为纯数字后做包含匹配 */
+    var norm = function(v){
+      return String(v).toLowerCase()
+        .replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 65248); })
+        .replace(/[^\d]/g, '');
+    };
+    var indexed = R.map(function(r){
+      var seg = String(r.key).split('-');
+      return {r:r, full:norm(r.key), no:norm(seg[seg.length - 1])};
+    });
+    var bName = {};
+    B.forEach(function(b){ bName[b.id] = b.name; });
+    var q = document.getElementById('q');
+    var clr = document.getElementById('clr');
+    var res = document.getElementById('res');
+    var rsum = document.getElementById('rsum');
+
+    function render(){
+      var v = q.value.trim();
+      clr.classList.toggle('show', !!v);
+      var n = norm(v);
+      if(!n){
+        rsum.textContent = '输入房号即可查询';
+        res.innerHTML = '<div class="empty"><b>看看自家在不在群里</b>支持 1-1302、1302、11-1-101 等写法<br>只输房号会列出所有楼栋的同号房</div>';
+        return;
+      }
+      // 带楼栋分隔符（1-1302）→ 按完整房号精确查；
+      // 纯数字（1302）→ 只按房号段查，列出各幢同号房。
+      // 否则 1-302 与 1-1302 归一化后会产生歧义。
+      var hasSep = /[-—－\s#＃栋单元]/.test(v);
+      var exact = [];
+      var hits = [];
+      if(hasSep){
+        exact = indexed.filter(function(x){ return x.full === n; });
+        hits = exact.length ? exact : indexed.filter(function(x){ return x.full.indexOf(n) !== -1; });
+      }else{
+        hits = indexed.filter(function(x){ return x.no.indexOf(n) === 0; });
+        if(!hits.length) hits = indexed.filter(function(x){ return x.full.indexOf(n) !== -1; });
+      }
+      var isExact = hasSep && exact.length > 0;
+      if(!hits.length){
+        rsum.textContent = '没有找到匹配的房号';
+        res.innerHTML = '<div class="empty"><b>没有这个房号</b>请检查楼栋与房号，全盘共 ' + M.totalHouseholds + ' 户</div>';
+        return;
+      }
+      var shown = hits.slice(0, 40);
+      rsum.innerHTML = '找到 <b>' + hits.length + '</b> 个房号' +
+        (isExact ? ' · 精确匹配' : ' · 同号房，补全楼栋号可精确定位') +
+        (hits.length > shown.length ? ' · 仅显示前 40 个' : '');
+      res.innerHTML = shown.map(function(x){
+        var r = x.r;
+        var on = r.joined > 0;
+        return '<div class="rr">' +
+          '<span class="key">' + r.key + '</span>' +
+          '<span class="meta"><b>' + bName[r.b] + ' · ' + r.f + 'F</b><br>' + (r.u ? r.u + ' 单元' : (r.b > 10 ? '洋房' : '高层')) + '</span>' +
+          '<span class="st ' + (on ? 'on' : 'off') + '">' + (on ? '已入群 · ' + r.joined + ' 人' : '未入群') + '</span>' +
+        '</div>';
+      }).join('');
+    }
+    q.addEventListener('input', render);
+    clr.addEventListener('click', function(){ q.value = ''; render(); q.focus(); });
+    Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(c){
+      c.addEventListener('click', function(){ q.value = c.getAttribute('data-q'); render(); });
+    });
+    render();
+
+    /* 数据口径 */
+    var items = [
+      ['01 / 采集','逐屏读取群成员列表','通过本机辅助功能树逐屏读取，共 ' + M.screens + ' 屏、' + M.captured + ' 条昵称记录。群显示 <b>' + M.groupSize + '</b> 人。'],
+      ['02 / 归并','昵称中的房号即家庭','识别「楼-室」与「楼-单元-室」两种写法，同一房号下多个昵称合并为一户；对 <b>' + M.nickCompleted + '</b> 条缺失房号的成员用群昵称补全。'],
+      ['03 / 口径','478 户的完整分母','8 幢 16F、1 幢 13F、1 幢 11F 小高层（1F 架空、两梯三户），加 11#、12# 两幢 7F 洋房，合计 <b>' + M.totalHouseholds + '</b> 户，与逐户表一一对应。'],
+      ['04 / 隐私','姓名不出本机','本页与 3D 页面只展示房号与户数；昵称明细仅保存在本机 <b>data/members.csv</b>，未上传任何外部服务，采集为只读操作。']
+    ];
+    document.getElementById('method').innerHTML = items.map(function(it){
+      return '<div class="m-item"><div class="n">' + it[0] + '</div><h3>' + it[1] + '</h3><p>' + it[2] + '</p></div>';
+    }).join('');
+
+    /* 底部导航 */
+    var tabs = document.getElementById('tabs');
+    function go(v){
+      Array.prototype.forEach.call(tabs.children, function(t){ t.classList.toggle('on', t.getAttribute('data-v') === v); });
+      Array.prototype.forEach.call(document.querySelectorAll('.view'), function(sec){
+        sec.classList.toggle('on', sec.id === 'v-' + v);
+      });
+      window.scrollTo(0, 0);
+    }
+    tabs.addEventListener('click', function(e){
+      var t = e.target.closest('.tab');
+      if(t) go(t.getAttribute('data-v'));
+    });
+    document.getElementById('goCheck').addEventListener('click', function(){
+      go('search');
+      setTimeout(function(){ try{ q.focus(); }catch(_){} }, 60);
+    });
+  }
+})();
+</script>
+</body>
+</html>
