@@ -11,7 +11,7 @@ RAW = ROOT / "data" / "raw"
 DATA = ROOT / "data"
 
 TOTAL_HOUSEHOLDS = 478
-SNAPSHOT_DATE = "2026-11-18"   # 数据口径日期
+SNAPSHOT_DATE = "2026-11-19"   # 数据口径日期
 SNAPSHOT_GROUP_SIZE = 316      # 群快照人数；快照后补录成员在此之上累加
 MANUAL_FILE = RAW / "manual-members.csv"
 OVERRIDES_FILE = RAW / "member-overrides.json"
